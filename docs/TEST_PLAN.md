@@ -10,10 +10,11 @@
 
 1. CASE-001: investigar e aplicar item contextual não altera estado antes da avaliação exigida.
 2. CASE-003: sinais respiratórios deterioram sem suporte e melhoram apenas no modelo de cenário.
-3. CASE-004: controle exige inspeção, trata a ferida visual e interrompe a tendência de sangramento simulada.
-4. CASE-011: compressão conta por toque; desfibrilador exige etapas; choque não dá recuperação automática.
-5. Choque fora do caso crítico é registrado como bloqueio/penalidade.
-6. Destino compatível pontua mais que escolha incompatível; a seed é preservada no reinício.
+3. Monitor: ECG e pletismografia derivam sua cadência da FC do estado; oxigenação, frequência e curva mudam depois das ações e da passagem de tempo.
+4. CASE-004: controle exige inspeção, trata a ferida visual e interrompe a tendência de sangramento simulada.
+5. CASE-011: compressão conta por toque; desfibrilador exige etapas; choque não dá recuperação automática.
+6. Choque fora do caso crítico é registrado como bloqueio/penalidade e piora o estado de jogo.
+7. Destino compatível pontua mais que escolha incompatível; a seed é preservada no reinício.
 
 ## Regressão manual antes de publicar
 

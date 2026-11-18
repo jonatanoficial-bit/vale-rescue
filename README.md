@@ -6,11 +6,12 @@ Primeira versão jogável, local e responsiva de um simulador ficcional de atend
 
 ## O que já funciona
 
-- Home, configurações, central de chamados, atendimento e relatório final.
+- Home, configurações, despacho automático da Central, atendimento e relatório final — sem escolha artificial de ocorrência.
 - Quatro ocorrências: investigação estável, respiratória, ferimento/sangramento e treino crítico fictício.
 - Motor TypeScript determinístico, separado da UI, com seed, evolução temporal, registro de eventos e pontuação de 0 a 1000.
 - Pesquisa com oito avaliações; ações contextuais; catálogo de seis itens de cenário sem posologia; confirmação de medicação.
 - Monitor com curva SVG e dados derivados do estado; ferida que muda visualmente; pausa e velocidades 1×/2×/3×.
+- Ambulância e pacientes 2,5D cinematográficos autorais; o paciente é renderizado deitado na maca, com composição compatível ao cenário.
 - Compressão por toque, etapas de desfibrilador, ventilação e infusão condicionais — todos registram causa, consequência e bloqueios.
 - Relatório, XP, reinício com a mesma seed e persistência local em IndexedDB.
 - Acessível por mouse, toque e teclado nativo; interface compacta para telas estreitas.
@@ -46,7 +47,7 @@ O workflow `.github/workflows/deploy.yml` gera `dist` e publica no GitHub Pages 
 
 ## Limitações conhecidas
 
-- O ambiente e pacientes são ilustrações CSS 2,5D autorais, não GLB/3D.
+- O ambiente e pacientes são cenas 2,5D autorais, não GLB/3D animado.
 - O áudio usa bipes breves sintetizados pelo navegador; não há trilha ou voz.
 - A consistência narrativa foi implementada como jogo. Todo conteúdo clínico exige revisão formal antes de alegações educacionais ou de realismo.
 

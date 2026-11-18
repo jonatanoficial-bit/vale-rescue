@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react'
 import './App.css'
-import { CASES, CASE_LIST, INTERVENTIONS, INVESTIGATIONS, MEDICATIONS } from './content/cases'
+import { CASES, INTERVENTIONS, INVESTIGATIONS, MEDICATIONS } from './content/cases'
 import { Monitor } from './components/Monitor'
 import { PatientScene } from './components/PatientScene'
 import { advanceTime, administerMedication, createCaseState, defibrillate, evaluateOutcome, investigate, intervene, registerCompression, setVentilation, startInfusion } from './engine/clinical'
 import type { ActionResult, CaseId, Destination, GameState, LogEntry, ScoreReport } from './engine/types'
 import { clearCheckpoint, loadCheckpoint, saveCheckpoint, saveReport } from './services/persistence'
 
-type Screen = 'home' | 'cases' | 'game' | 'report' | 'settings'
+type Screen = 'home' | 'game' | 'report' | 'settings'
 type Panel = 'record' | 'research' | 'actions' | 'meds' | 'defib' | 'ventilation' | 'infusion' | 'log' | 'finish'
 const destinationLabel: Record<Destination, string> = { discharge: 'Casa / Alta', hospital: 'Ambulância / Hospital', advanced_team: 'Equipe avançada' }
 const asTime = (total: number) => `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(Math.floor(total % 60)).padStart(2, '0')}`
+const assignedCases: CaseId[] = ['CASE-001', 'CASE-003', 'CASE-004', 'CASE-011']
 
 function App() {
   const [screen, setScreen] = useState<Screen>('home')
@@ -21,6 +22,8 @@ function App() {
   const [report, setReport] = useState<ScoreReport | null>(null)
   const [pendingMedication, setPendingMedication] = useState<string | null>(null)
   const [volume, setVolume] = useState(35)
+  const [dispatchVisible, setDispatchVisible] = useState(false)
+  const [dispatchIndex, setDispatchIndex] = useState(() => Math.floor(Date.now() / 60000))
 
   useEffect(() => {
     if (!game || game.status !== 'active' || game.speed === 0) return
@@ -31,18 +34,18 @@ function App() {
 
   const scenario = game ? CASES[game.caseId] : null
   const runResult = (result: ActionResult) => { setGame(result.nextState); setFeedback(result.feedback); tone(result.feedback.tone, volume) }
-  const start = (caseId: CaseId, seed?: number) => { const next = createCaseState(caseId, seed); setGame(next); setFeedback(next.actionLog.at(-1) ?? null); setReport(null); setPanel('record'); setScreen('game') }
-  const continueCareer = async () => { try { const saved = await loadCheckpoint(); if (saved && saved.status === 'active') { setGame(saved); setPanel('record'); setScreen('game'); return } } catch { /* Private browser storage can fail. */ } setMode('carreira'); setScreen('cases') }
+  const start = (caseId: CaseId, seed?: number) => { const next = createCaseState(caseId, seed); setGame(next); setFeedback(next.actionLog.at(-1) ?? null); setReport(null); setPanel('record'); setDispatchVisible(true); setScreen('game') }
+  const startAssigned = () => { const caseId = assignedCases[dispatchIndex % assignedCases.length]; setDispatchIndex((index) => index + 1); start(caseId) }
+  const continueCareer = async () => { try { const saved = await loadCheckpoint(); if (saved && saved.status === 'active') { setGame(saved); setPanel('record'); setDispatchVisible(false); setScreen('game'); return } } catch { /* Private browser storage can fail. */ } setMode('carreira'); startAssigned() }
   const finish = async (destination: Destination, hypothesis: string, rationale: string) => { if (!game) return; const finalReport = evaluateOutcome(game, destination, hypothesis, rationale); const completed = { ...game, status: 'completed' as const }; setGame(completed); setReport(finalReport); setScreen('report'); try { await saveReport(completed, finalReport); await clearCheckpoint() } catch { /* Gameplay works without persistence. */ } }
 
-  if (screen === 'home') return <Home onStart={() => { setMode('treino'); setScreen('cases') }} onContinue={continueCareer} onSettings={() => setScreen('settings')} />
+  if (screen === 'home') return <Home onStart={() => { setMode('carreira'); startAssigned() }} onContinue={continueCareer} onSettings={() => setScreen('settings')} />
   if (screen === 'settings') return <Settings volume={volume} onVolume={setVolume} onBack={() => setScreen('home')} />
-  if (screen === 'cases') return <CaseSelect mode={mode} onBack={() => setScreen('home')} onMode={setMode} onStart={start} />
-  if (screen === 'report' && report && game && scenario) return <Report state={game} scenario={scenario} report={report} onRetry={() => start(game.caseId, game.seed)} onNew={() => start(game.caseId)} onHome={() => setScreen('home')} />
+  if (screen === 'report' && report && game && scenario) return <Report state={game} scenario={scenario} report={report} onRetry={() => start(game.caseId, game.seed)} onNew={startAssigned} onHome={() => setScreen('home')} />
   if (!game || !scenario) return null
   return <main className="game-shell">
     <header className="game-header">
-      <button className="brand-button" onClick={() => setScreen('cases')} aria-label="Voltar à central"><span>VALE</span> RESCUE <small>PLANTÃO / {mode.toUpperCase()}</small></button>
+      <button className="brand-button" onClick={() => setScreen('home')} aria-label="Encerrar visualização e voltar ao início"><span>VALE</span> RESCUE <small>PLANTÃO / {mode.toUpperCase()}</small></button>
       <div className="case-chip"><b>{scenario.priority}</b><span>{scenario.id} · {scenario.shortTitle}</span></div>
       <div className="clock-control"><span>⏱ {asTime(game.elapsedSeconds)}</span>{([0, 1, 2, 3] as const).map((speed) => <button key={speed} className={game.speed === speed ? 'active' : ''} onClick={() => setGame({ ...game, speed })}>{speed === 0 ? 'Ⅱ' : `${speed}×`}</button>)}</div>
     </header>
@@ -66,12 +69,13 @@ function App() {
       <Tool label="Prontuário" icon="▤" active={panel === 'record'} onClick={() => setPanel('record')} /><Tool label="Pesquisa" icon="⌕" active={panel === 'research'} color="mint" onClick={() => setPanel('research')} /><Tool label="Ações" icon="✦" active={panel === 'actions'} color="coral" onClick={() => setPanel('actions')} /><Tool label="Medicação" icon="◈" active={panel === 'meds'} color="blue" onClick={() => setPanel('meds')} />
       <Tool label={`Compressão ${game.compressions}`} icon="↡" color="red" onClick={() => runResult(registerCompression(game))} /><Tool label="Desfibrilador" icon="ϟ" active={panel === 'defib'} color="amber" onClick={() => setPanel('defib')} /><Tool label="Ventilação" icon="≋" active={panel === 'ventilation'} color="cyan" onClick={() => setPanel('ventilation')} /><Tool label="Infusão" icon="⌇" active={panel === 'infusion'} color="purple" onClick={() => setPanel('infusion')} /><Tool label="Diário" icon="☷" active={panel === 'log'} onClick={() => setPanel('log')} /><Tool label="Destino" icon="➜" active={panel === 'finish'} color="green" onClick={() => setPanel('finish')} />
     </nav><footer className="medical-note">SIMULAÇÃO FICCIONAL · NÃO É ORIENTAÇÃO MÉDICA · decisões e valores dependem de revisão profissional.</footer>
+    {dispatchVisible && <DispatchOverlay scenario={scenario} onEnter={() => setDispatchVisible(false)} />}
   </main>
 }
 
-function Home({ onStart, onContinue, onSettings }: { onStart: () => void; onContinue: () => void; onSettings: () => void }) { return <main className="home-screen"><div className="home-ambient" /><section className="home-copy"><p className="eyebrow">VALE GAMES · SIMULAÇÃO FICCIONAL</p><h1>VALE<br /><em>RESCUE</em></h1><p className="home-subtitle">PLANTÃO DE EMERGÊNCIA</p><p className="home-text">Quatro ocorrências, consequências rastreáveis e um atendimento inteiramente local. Pense antes de agir.</p><div className="home-actions"><button className="primary" onClick={onStart}>Começar plantão <span>→</span></button><button onClick={onContinue}>Continuar carreira</button><button onClick={onStart}>Modo treino</button><button onClick={onSettings}>Configurações</button></div><p className="home-disclaimer">Entretenimento e estudo de interface. Não reproduz protocolos de atendimento nem substitui formação.</p></section><div className="home-monitor"><span>MONITOR / LOCAL</span><strong>04</strong><small>cenários jogáveis</small><i /></div></main> }
+function Home({ onStart, onContinue, onSettings }: { onStart: () => void; onContinue: () => void; onSettings: () => void }) { return <main className="home-screen"><div className="home-ambient" /><section className="home-copy"><p className="eyebrow">VALE GAMES · SIMULAÇÃO FICCIONAL</p><h1>VALE<br /><em>RESCUE</em></h1><p className="home-subtitle">PLANTÃO DE EMERGÊNCIA</p><p className="home-text">A Central atribui a ocorrência. Você entra na ambulância, recebe o despacho e responde ao cenário.</p><div className="home-actions"><button className="primary" onClick={onStart}>Entrar no plantão <span>→</span></button><button onClick={onContinue}>Continuar atendimento</button><button onClick={onSettings}>Configurações</button></div><p className="home-disclaimer">Entretenimento e estudo de interface. Não reproduz protocolos de atendimento nem substitui formação.</p></section><div className="home-monitor"><span>STATUS / PLANTÃO</span><strong>ON</strong><small>central conectada</small><i /></div></main> }
 function Settings({ volume, onVolume, onBack }: { volume: number; onVolume: (value: number) => void; onBack: () => void }) { return <main className="settings-screen"><section className="settings-card"><p className="eyebrow">VALE RESCUE</p><h1>Configurações</h1><label>Volume de feedback <output>{volume}%</output><input aria-label="Volume de feedback" type="range" min="0" max="100" value={volume} onChange={(event) => onVolume(Number(event.target.value))} /></label><div className="setting-row"><span>Modo visual</span><b>2,5D original</b></div><div className="setting-row"><span>Salvamento</span><b>IndexedDB local</b></div><button className="primary" onClick={onBack}>Voltar</button></section></main> }
-function CaseSelect({ mode, onMode, onBack, onStart }: { mode: 'treino' | 'carreira'; onMode: (mode: 'treino' | 'carreira') => void; onBack: () => void; onStart: (id: CaseId) => void }) { return <main className="central-screen"><header><button onClick={onBack}>← Início</button><div><p className="eyebrow">CENTRAL DE REGULAÇÃO</p><h1>Chamados disponíveis</h1></div><div className="mode-toggle"><button className={mode === 'treino' ? 'active' : ''} onClick={() => onMode('treino')}>Treino</button><button className={mode === 'carreira' ? 'active' : ''} onClick={() => onMode('carreira')}>Carreira</button></div></header><p className="central-note">Escolha uma ocorrência. Semente e histórico permanecem no seu navegador.</p><div className="case-grid">{CASE_LIST.map((item) => <article className={`case-card priority-${item.priority.toLowerCase()}`} key={item.id}><div><span>{item.priority}</span><b>{item.id}</b></div><h2>{item.title}</h2><p>{item.dispatch}</p><footer><small>{item.category}</small><button className="primary" onClick={() => onStart(item.id)}>Atender →</button></footer></article>)}</div></main> }
+function DispatchOverlay({ scenario, onEnter }: { scenario: (typeof CASES)[CaseId]; onEnter: () => void }) { return <section className="dispatch-overlay" role="dialog" aria-modal="true" aria-label="Despacho da Central"><div className="dispatch-card"><div className="dispatch-signal"><i /><i /><i /></div><p className="eyebrow">CENTRAL DE REGULAÇÃO · CHAMADO ATRIBUÍDO</p><div className="dispatch-id"><span>{scenario.priority}</span><b>{scenario.id}</b></div><h2>{scenario.title}</h2><p className="dispatch-copy">{scenario.dispatch}</p><div className="dispatch-meta"><span>UNIDADE 07 · EQUIPE A BORDO</span><span>MONITOR PRÉ-CONECTADO</span></div><button className="primary" onClick={onEnter}>Confirmar recebimento <span>→</span></button><small>Não há seleção de caso: a Central determina a ocorrência deste plantão.</small></div></section> }
 function PanelTitle({ panel, scenario }: { panel: Panel; scenario: string }) { const names: Record<Panel, string> = { record: 'Prontuário', research: 'Pesquisa', actions: 'Ações', meds: 'Medicação', defib: 'Desfibrilador', ventilation: 'Ventilação', infusion: 'Infusão', log: 'Diário da ocorrência', finish: 'Destino e relatório' }; return <div className="panel-title"><div><p>{scenario}</p><h2>{names[panel]}</h2></div><span className="panel-status">LOCAL</span></div> }
 function RecordPanel({ state }: { state: GameState }) { const c = CASES[state.caseId]; return <div className="panel-content record"><div className="patient-mini"><span>{c.patient.bodyPreset === 'marina' ? 'M' : 'C'}</span><div><b>{c.patient.name}</b><small>{c.patient.age} anos · {c.patient.gender}</small></div></div><Info label="Central" value={c.dispatch} /><Info label="Testemunha" value={c.witness} /><Info label="Histórico" value={c.history} /><Info label="Status" value={state.vitals.consciousness === 'unresponsive' ? 'Não responsivo — sem fala atribuída.' : 'Paciente pode responder conforme o roteiro.'} /></div> }
 function ResearchPanel({ state, onAction }: { state: GameState; onAction: (id: string) => void }) { return <div className="panel-content"><p className="helper">Avaliações revelam dados, mas não mudam a fisiologia diretamente.</p>{INVESTIGATIONS.map((item) => <button className={`list-button ${state.knownInvestigations.includes(item.id) ? 'done' : ''}`} key={item.id} onClick={() => onAction(item.id)}><span>{item.icon}</span><div><b>{item.label}</b><small>{state.knownInvestigations.includes(item.id) ? CASES[state.caseId].findings[item.id] : 'Disponível · consome tempo simulado'}</small></div><em>{state.knownInvestigations.includes(item.id) ? 'feito' : 'avaliar'}</em></button>)}</div> }

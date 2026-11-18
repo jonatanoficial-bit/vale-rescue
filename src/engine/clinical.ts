@@ -23,12 +23,12 @@ const reject = (state: GameState, code: string, outcome: string, penalty = 0): A
 export const createCaseState = (caseId: CaseId, seed = Math.floor(Date.now() % 1000000)): GameState => {
   const scenario = CASES[caseId]
   const state: GameState = {
-    schemaVersion: 1, caseId, seed, elapsedSeconds: 0, speed: 1, vitals: { ...scenario.baseline }, monitorConnected: false,
-    knownInvestigations: [], completedInterventions: [], medicationsGiven: [], wounds: scenario.wound ? [{ ...scenario.wound }] : [],
+    schemaVersion: 1, caseId, seed, elapsedSeconds: 0, speed: 1, vitals: { ...scenario.baseline }, monitorConnected: true,
+    knownInvestigations: [], completedInterventions: ['monitor'], medicationsGiven: [], wounds: scenario.wound ? [{ ...scenario.wound }] : [],
     defibrillator: { pads: false, charged: false, cleared: false, shocked: false }, ventilation: 'off', compressions: 0,
     infusionActive: false, actionLog: [], penalties: 0, status: 'active',
   }
-  return finish(state, entry(state, 'START', `Ocorrência ${caseId} iniciada com seed ${seed}.`)).nextState
+  return finish(state, entry(state, 'START', `Ocorrência ${caseId} recebida pela Central; monitor pré-conectado e seed ${seed}.`)).nextState
 }
 
 const spendTime = (state: GameState, seconds: number) => advanceTime(state, seconds)
@@ -50,9 +50,21 @@ export const intervene = (state: GameState, interventionId: string): ActionResul
   const next = copyState(spendTime(state, 15))
   next.completedInterventions.push(interventionId)
   if (interventionId === 'monitor') next.monitorConnected = true
-  if (interventionId === 'oxygen') { next.vitals.spo2 = clamp((next.vitals.spo2 ?? 0) + 4, 0, 100); next.vitals.respiratoryRate = Math.max(12, (next.vitals.respiratoryRate ?? 12) - 3) }
-  if (interventionId === 'airway' && state.caseId === 'CASE-003') next.vitals.spo2 = clamp((next.vitals.spo2 ?? 0) + 2, 0, 100)
-  if (interventionId === 'control_bleeding') { next.wounds = next.wounds.map((wound) => ({ ...wound, treated: true, severity: 0.22 })); next.vitals.systolicBP = (next.vitals.systolicBP ?? 0) + 8 }
+  if (interventionId === 'oxygen') {
+    next.vitals.spo2 = clamp((next.vitals.spo2 ?? 0) + 4, 0, 100)
+    next.vitals.respiratoryRate = Math.max(12, (next.vitals.respiratoryRate ?? 12) - 3)
+    next.vitals.heartRate = Math.max(60, (next.vitals.heartRate ?? 60) - 6)
+  }
+  if (interventionId === 'airway' && state.caseId === 'CASE-003') {
+    next.vitals.spo2 = clamp((next.vitals.spo2 ?? 0) + 2, 0, 100)
+    next.vitals.respiratoryRate = Math.max(12, (next.vitals.respiratoryRate ?? 12) - 2)
+    next.vitals.heartRate = Math.max(60, (next.vitals.heartRate ?? 60) - 3)
+  }
+  if (interventionId === 'control_bleeding') {
+    next.wounds = next.wounds.map((wound) => ({ ...wound, treated: true, severity: 0.22 }))
+    next.vitals.systolicBP = (next.vitals.systolicBP ?? 0) + 8
+    next.vitals.heartRate = Math.max(60, (next.vitals.heartRate ?? 60) - 7)
+  }
   return finish(next, entry(next, 'INTERVENÇÃO', `${interventionId === 'control_bleeding' ? 'Controle de sangramento aplicado; ferida atualizada.' : 'Intervenção concluída e registrada no diário.'}`, 'success'))
 }
 
@@ -77,7 +89,13 @@ export const registerCompression = (state: GameState): ActionResult => {
 }
 
 export const defibrillate = (state: GameState, step: 'pads' | 'charge' | 'clear' | 'shock'): ActionResult => {
-  if (state.caseId !== 'CASE-011') return reject(state, 'DESFIBRILAÇÃO_BLOQUEADA', 'Choque recusado: ritmo/condição sem indicação no cenário.', 45)
+  if (state.caseId !== 'CASE-011') {
+    const next = copyState(state)
+    next.penalties += 45
+    next.vitals.heartRate = next.vitals.heartRate === null ? null : clamp(next.vitals.heartRate + 8, 0, 180)
+    next.vitals.spo2 = next.vitals.spo2 === null ? null : clamp(next.vitals.spo2 - 2, 0, 100)
+    return finish(next, entry(next, 'DESFIBRILAÇÃO_BLOQUEADA', 'Choque recusado: ritmo/condição sem indicação no cenário. A tentativa inadequada agrava os sinais simulados.', 'danger'))
+  }
   const next = copyState(state)
   if (step === 'pads') { next.defibrillator.pads = true; return finish(next, entry(next, 'DESFIBRILADOR', 'Eletrodos simulados posicionados.', 'success')) }
   if (step === 'charge') {
@@ -119,12 +137,18 @@ export const advanceTime = (state: GameState, seconds: number): GameState => {
   if (next.caseId === 'CASE-003' && !has('oxygen')) {
     next.vitals.spo2 = clamp((next.vitals.spo2 ?? 90) - seconds * 0.04, 75, 100)
     next.vitals.respiratoryRate = clamp((next.vitals.respiratoryRate ?? 22) + seconds * 0.02, 10, 38)
+    next.vitals.heartRate = clamp((next.vitals.heartRate ?? 100) + seconds * 0.018, 45, 155)
   }
+  if (next.caseId === 'CASE-003' && has('oxygen')) next.vitals.heartRate = clamp((next.vitals.heartRate ?? 90) - seconds * 0.006, 62, 130)
   if (next.caseId === 'CASE-004' && !has('control_bleeding')) {
     next.vitals.systolicBP = clamp((next.vitals.systolicBP ?? 105) - seconds * 0.03, 70, 160)
     next.vitals.heartRate = clamp((next.vitals.heartRate ?? 100) + seconds * 0.025, 40, 160)
   }
-  if (next.caseId === 'CASE-004' && has('control_bleeding') && next.infusionActive) next.vitals.systolicBP = clamp((next.vitals.systolicBP ?? 100) + seconds * 0.015, 70, 130)
+  if (next.caseId === 'CASE-004' && has('control_bleeding')) next.vitals.heartRate = clamp((next.vitals.heartRate ?? 100) - seconds * 0.008, 62, 130)
+  if (next.caseId === 'CASE-004' && has('control_bleeding') && next.infusionActive) {
+    next.vitals.systolicBP = clamp((next.vitals.systolicBP ?? 100) + seconds * 0.015, 70, 130)
+    next.vitals.heartRate = clamp((next.vitals.heartRate ?? 100) - seconds * 0.006, 62, 130)
+  }
   if (next.caseId === 'CASE-011' && next.defibrillator.shocked && next.compressions >= 8 && next.ventilation === 'running') {
     next.vitals.spo2 = clamp((next.vitals.spo2 ?? 70) + seconds * 0.08, 60, 86)
     next.vitals.respiratoryRate = 8

@@ -12,10 +12,13 @@ describe('motor do Vale Rescue', () => {
 
   it('deteriora o caso respiratório sem suporte e responde à ação contextual', () => {
     const initial = createCaseState('CASE-003', 34)
+    expect(initial.monitorConnected).toBe(true)
     const later = advanceTime(initial, 60)
     expect(later.vitals.spo2).toBeLessThan(initial.vitals.spo2 ?? 100)
+    expect(later.vitals.heartRate).toBeGreaterThan(initial.vitals.heartRate ?? 0)
     const oxygen = intervene(later, 'oxygen').nextState
     expect(oxygen.vitals.spo2).toBeGreaterThan(later.vitals.spo2 ?? 0)
+    expect(oxygen.vitals.heartRate).toBeLessThan(later.vitals.heartRate ?? Infinity)
   })
 
   it('exige inspeção e trata visualmente a ferida simulada', () => {
@@ -25,6 +28,7 @@ describe('motor do Vale Rescue', () => {
     const treated = intervene(inspected, 'control_bleeding').nextState
     expect(treated.wounds[0]).toMatchObject({ treated: true, severity: 0.22 })
     expect(treated.completedInterventions).toContain('control_bleeding')
+    expect(treated.vitals.heartRate).toBeLessThan(inspected.vitals.heartRate ?? Infinity)
   })
 
   it('registra uma compressão por toque e não permite choque sem as etapas', () => {
