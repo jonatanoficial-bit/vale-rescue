@@ -24,6 +24,8 @@ function App() {
   const [volume, setVolume] = useState(35)
   const [dispatchVisible, setDispatchVisible] = useState(false)
   const [dispatchIndex, setDispatchIndex] = useState(() => Math.floor(Date.now() / 60000))
+  const [monitorExpanded, setMonitorExpanded] = useState(false)
+  const [quickDestination, setQuickDestination] = useState<Destination>('hospital')
 
   useEffect(() => {
     if (!game || game.status !== 'active' || game.speed === 0) return
@@ -34,7 +36,7 @@ function App() {
 
   const scenario = game ? CASES[game.caseId] : null
   const runResult = (result: ActionResult) => { setGame(result.nextState); setFeedback(result.feedback); tone(result.feedback.tone, volume) }
-  const start = (caseId: CaseId, seed?: number) => { const next = createCaseState(caseId, seed); setGame(next); setFeedback(next.actionLog.at(-1) ?? null); setReport(null); setPanel('record'); setDispatchVisible(true); setScreen('game') }
+  const start = (caseId: CaseId, seed?: number) => { const next = createCaseState(caseId, seed); setGame(next); setFeedback(next.actionLog.at(-1) ?? null); setReport(null); setPanel('record'); setQuickDestination('hospital'); setMonitorExpanded(false); setDispatchVisible(true); setScreen('game') }
   const startAssigned = () => { const caseId = assignedCases[dispatchIndex % assignedCases.length]; setDispatchIndex((index) => index + 1); start(caseId) }
   const continueCareer = async () => { try { const saved = await loadCheckpoint(); if (saved && saved.status === 'active') { setGame(saved); setPanel('record'); setDispatchVisible(false); setScreen('game'); return } } catch { /* Private browser storage can fail. */ } setMode('carreira'); startAssigned() }
   const finish = async (destination: Destination, hypothesis: string, rationale: string) => { if (!game) return; const finalReport = evaluateOutcome(game, destination, hypothesis, rationale); const completed = { ...game, status: 'completed' as const }; setGame(completed); setReport(finalReport); setScreen('report'); try { await saveReport(completed, finalReport); await clearCheckpoint() } catch { /* Gameplay works without persistence. */ } }
@@ -43,6 +45,7 @@ function App() {
   if (screen === 'settings') return <Settings volume={volume} onVolume={setVolume} onBack={() => setScreen('home')} />
   if (screen === 'report' && report && game && scenario) return <Report state={game} scenario={scenario} report={report} onRetry={() => start(game.caseId, game.seed)} onNew={startAssigned} onHome={() => setScreen('home')} />
   if (!game || !scenario) return null
+  const openFinish = (destination: Destination) => { setQuickDestination(destination); setPanel('finish') }
   return <main className="game-shell">
     <header className="game-header">
       <button className="brand-button" onClick={() => setScreen('home')} aria-label="Encerrar visualização e voltar ao início"><span>VALE</span> RESCUE <small>PLANTÃO / {mode.toUpperCase()}</small></button>
@@ -50,7 +53,14 @@ function App() {
       <div className="clock-control"><span>⏱ {asTime(game.elapsedSeconds)}</span>{([0, 1, 2, 3] as const).map((speed) => <button key={speed} className={game.speed === speed ? 'active' : ''} onClick={() => setGame({ ...game, speed })}>{speed === 0 ? 'Ⅱ' : `${speed}×`}</button>)}</div>
     </header>
     <div className="game-grid">
-      <Monitor state={game} /><PatientScene state={game} />
+      <PatientScene state={game}>
+        <div className="scene-monitor-slot"><Monitor state={game} presentation="embedded" onExpand={() => setMonitorExpanded(true)} /></div>
+        <nav className="scene-tool-dock" aria-label="Controles do atendimento">
+          <Tool label="Prontuário" icon="▤" active={panel === 'record'} onClick={() => setPanel('record')} /><Tool label="Liberar" icon="⌂" active={panel === 'finish' && quickDestination === 'discharge'} color="green" onClick={() => openFinish('discharge')} /><Tool label="Hospital" icon="➜" active={panel === 'finish' && quickDestination === 'hospital'} color="coral" onClick={() => openFinish('hospital')} />
+          <Tool label="Pesquisa" icon="⌕" active={panel === 'research'} color="mint" onClick={() => setPanel('research')} /><Tool label="Ações" icon="✦" active={panel === 'actions'} color="coral" onClick={() => setPanel('actions')} /><Tool label="Medicação" icon="◈" active={panel === 'meds'} color="blue" onClick={() => setPanel('meds')} />
+          <Tool label={`Compressão ${game.compressions}`} icon="↡" color="red" onClick={() => runResult(registerCompression(game))} /><Tool label="Desfibrilador" icon="ϟ" active={panel === 'defib'} color="amber" onClick={() => setPanel('defib')} /><Tool label="Ventilação" icon="≋" active={panel === 'ventilation'} color="cyan" onClick={() => setPanel('ventilation')} /><Tool label="Infusão" icon="⌇" active={panel === 'infusion'} color="purple" onClick={() => setPanel('infusion')} /><Tool label="Diário" icon="☷" active={panel === 'log'} onClick={() => setPanel('log')} />
+        </nav>
+      </PatientScene>
       <section className="command-panel" aria-live="polite">
         <PanelTitle panel={panel} scenario={scenario.title} />
         {panel === 'record' && <RecordPanel state={game} />}
@@ -61,14 +71,12 @@ function App() {
         {panel === 'ventilation' && <VentilationPanel state={game} onAction={(step) => runResult(setVentilation(game, step))} />}
         {panel === 'infusion' && <InfusionPanel state={game} onAction={() => runResult(startInfusion(game))} />}
         {panel === 'log' && <LogPanel state={game} />}
-        {panel === 'finish' && <FinishPanel caseId={game.caseId} onFinish={finish} />}
+        {panel === 'finish' && <FinishPanel key={quickDestination} caseId={game.caseId} initialDestination={quickDestination} onFinish={finish} />}
         {feedback && <div className={`feedback feedback-${feedback.tone}`}><b>{feedback.code.replaceAll('_', ' ')}</b><span>{feedback.outcome}</span></div>}
       </section>
     </div>
-    <nav className="tool-dock" aria-label="Controles do atendimento">
-      <Tool label="Prontuário" icon="▤" active={panel === 'record'} onClick={() => setPanel('record')} /><Tool label="Pesquisa" icon="⌕" active={panel === 'research'} color="mint" onClick={() => setPanel('research')} /><Tool label="Ações" icon="✦" active={panel === 'actions'} color="coral" onClick={() => setPanel('actions')} /><Tool label="Medicação" icon="◈" active={panel === 'meds'} color="blue" onClick={() => setPanel('meds')} />
-      <Tool label={`Compressão ${game.compressions}`} icon="↡" color="red" onClick={() => runResult(registerCompression(game))} /><Tool label="Desfibrilador" icon="ϟ" active={panel === 'defib'} color="amber" onClick={() => setPanel('defib')} /><Tool label="Ventilação" icon="≋" active={panel === 'ventilation'} color="cyan" onClick={() => setPanel('ventilation')} /><Tool label="Infusão" icon="⌇" active={panel === 'infusion'} color="purple" onClick={() => setPanel('infusion')} /><Tool label="Diário" icon="☷" active={panel === 'log'} onClick={() => setPanel('log')} /><Tool label="Destino" icon="➜" active={panel === 'finish'} color="green" onClick={() => setPanel('finish')} />
-    </nav><footer className="medical-note">SIMULAÇÃO FICCIONAL · NÃO É ORIENTAÇÃO MÉDICA · decisões e valores dependem de revisão profissional.</footer>
+    <footer className="medical-note">SIMULAÇÃO FICCIONAL · NÃO É ORIENTAÇÃO MÉDICA · decisões e valores dependem de revisão profissional.</footer>
+    {monitorExpanded && <div className="monitor-overlay" role="dialog" aria-modal="true" aria-label="Monitor ampliado"><Monitor state={game} presentation="fullscreen" onClose={() => setMonitorExpanded(false)} /></div>}
     {dispatchVisible && <DispatchOverlay scenario={scenario} onEnter={() => setDispatchVisible(false)} />}
   </main>
 }
@@ -85,7 +93,7 @@ function DefibPanel({ state, onAction }: { state: GameState; onAction: (step: 'p
 function VentilationPanel({ state, onAction }: { state: GameState; onAction: (step: 'connect' | 'start' | 'stop') => void }) { return <div className="panel-content"><p className="helper">Recurso condicionado a caso, equipe e equipamento simulados.</p><div className="step-grid"><Step label="Conectar" done={state.ventilation !== 'off'} onClick={() => onAction('connect')} /><Step label="Iniciar" done={state.ventilation === 'running'} onClick={() => onAction('start')} /><Step label="Parar" onClick={() => onAction('stop')} /></div><Info label="Estado" value={state.ventilation === 'running' ? 'Ventilação fictícia em andamento.' : 'Nenhuma ventilação ativa.'} /></div> }
 function InfusionPanel({ state, onAction }: { state: GameState; onAction: () => void }) { return <div className="panel-content"><p className="helper">Infusão é contextual e não faz parte de toda ambulância ou ocorrência.</p><button className={`large-action ${state.infusionActive ? 'done' : ''}`} onClick={onAction}>{state.infusionActive ? 'Infusão em curso no cenário' : 'Iniciar infusão contextual'}</button><Info label="Pré-requisito" value={state.completedInterventions.includes('iv_access') ? 'Acesso registrado.' : 'Requer acesso para infusão previsto no roteiro.'} /></div> }
 function LogPanel({ state }: { state: GameState }) { return <div className="panel-content log-list">{[...state.actionLog].reverse().map((item, index) => <div className={`log-item ${item.tone}`} key={`${item.at}-${index}`}><time>{asTime(item.at)}</time><div><b>{item.code.replaceAll('_', ' ')}</b><span>{item.outcome}</span></div></div>)}</div> }
-function FinishPanel({ caseId, onFinish }: { caseId: CaseId; onFinish: (destination: Destination, hypothesis: string, rationale: string) => void }) { const [destination, setDestination] = useState<Destination>('hospital'); const [hypothesis, setHypothesis] = useState('Avaliação simulada em andamento'); const [rationale, setRationale] = useState('Achados e evolução registrados no diário.'); const safe = CASES[caseId].safeDestinations; return <form className="panel-content finish" onSubmit={(event) => { event.preventDefault(); onFinish(destination, hypothesis, rationale) }}><p className="helper">Registre uma hipótese e uma justificativa; a pontuação será calculada pelo estado real do cenário.</p><label>Destino<select value={destination} onChange={(event) => setDestination(event.target.value as Destination)}>{(Object.keys(destinationLabel) as Destination[]).map((item) => <option value={item} key={item}>{destinationLabel[item]}{safe.includes(item) ? ' · previsto' : ''}</option>)}</select></label><label>Hipótese de atendimento<input value={hypothesis} onChange={(event) => setHypothesis(event.target.value)} /></label><label>Justificativa<textarea rows={3} value={rationale} onChange={(event) => setRationale(event.target.value)} /></label><button className="primary full" type="submit">Confirmar destino e gerar relatório →</button></form> }
+function FinishPanel({ caseId, initialDestination, onFinish }: { caseId: CaseId; initialDestination: Destination; onFinish: (destination: Destination, hypothesis: string, rationale: string) => void }) { const [destination, setDestination] = useState<Destination>(initialDestination); const [hypothesis, setHypothesis] = useState('Avaliação simulada em andamento'); const [rationale, setRationale] = useState('Achados e evolução registrados no diário.'); const safe = CASES[caseId].safeDestinations; return <form className="panel-content finish" onSubmit={(event) => { event.preventDefault(); onFinish(destination, hypothesis, rationale) }}><p className="helper">Registre uma hipótese e uma justificativa; a pontuação será calculada pelo estado real do cenário.</p><label>Destino<select value={destination} onChange={(event) => setDestination(event.target.value as Destination)}>{(Object.keys(destinationLabel) as Destination[]).map((item) => <option value={item} key={item}>{destinationLabel[item]}{safe.includes(item) ? ' · previsto' : ''}</option>)}</select></label><label>Hipótese de atendimento<input value={hypothesis} onChange={(event) => setHypothesis(event.target.value)} /></label><label>Justificativa<textarea rows={3} value={rationale} onChange={(event) => setRationale(event.target.value)} /></label><button className="primary full" type="submit">Confirmar destino e gerar relatório →</button></form> }
 function Step({ label, done, danger, onClick }: { label: string; done?: boolean; danger?: boolean; onClick: () => void }) { return <button className={`step ${done ? 'done' : ''} ${danger ? 'danger' : ''}`} onClick={onClick}>{done ? '✓ ' : ''}{label}</button> }
 function Info({ label, value }: { label: string; value: string }) { return <div className="info"><span>{label}</span><p>{value}</p></div> }
 function Tool({ label, icon, active, color, onClick }: { label: string; icon: string; active?: boolean; color?: string; onClick: () => void }) { return <button className={`tool ${active ? 'active' : ''} ${color ?? ''}`} onClick={onClick}><span>{icon}</span><small>{label}</small></button> }

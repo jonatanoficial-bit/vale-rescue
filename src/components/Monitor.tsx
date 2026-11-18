@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { KeyboardEvent } from 'react'
 import type { Rhythm, VitalState } from '../engine/types'
 import type { GameState } from '../engine/types'
 
-type MonitorProps = { state: GameState }
+type MonitorProps = { state: GameState; presentation?: 'embedded' | 'fullscreen'; onExpand?: () => void; onClose?: () => void }
 
 const format = (value: number | null, enabled: boolean, suffix = '') => enabled && value !== null ? `${Math.round(value)}${suffix}` : '—'
 const gauss = (value: number, center: number, width: number) => Math.exp(-((value - center) ** 2) / (2 * width ** 2))
@@ -36,7 +37,7 @@ function createPleth(vitals: VitalState, phase: number) {
   }).join(' ')
 }
 
-export function Monitor({ state }: MonitorProps) {
+export function Monitor({ state, presentation = 'embedded', onExpand, onClose }: MonitorProps) {
   const [phase, setPhase] = useState(0)
   const connected = state.monitorConnected
   useEffect(() => {
@@ -48,9 +49,12 @@ export function Monitor({ state }: MonitorProps) {
   const pleth = useMemo(() => createPleth(state.vitals, phase), [state.vitals, phase])
   const rhythmColor = state.vitals.rhythm === 'vf' ? '#ff5975' : state.vitals.spo2 !== null && state.vitals.spo2 < 90 ? '#ffd06b' : '#44f0bd'
 
-  return <section className="monitor" aria-label="Monitor multiparamétrico dinâmico">
-    <header><span className="monitor-dot" style={{ background: rhythmColor }} /> MONITOR <small>{connected ? 'SENSOR ATIVO · MOTOR SIMULADO' : 'AGUARDANDO SENSOR'}</small></header>
-    <div className="wave-label"><span>ECG</span><b>{state.vitals.heartRate ?? '—'} BPM</b><em>{state.vitals.rhythm.replaceAll('_', ' ')}</em></div>
+  const expand = () => onExpand?.()
+  const onKeyDown = (event: KeyboardEvent<HTMLElement>) => { if ((event.key === 'Enter' || event.key === ' ') && presentation === 'embedded') { event.preventDefault(); expand() } }
+
+  return <section className={`monitor monitor-${presentation}`} aria-label="Monitor multiparamétrico dinâmico" role={presentation === 'embedded' ? 'button' : undefined} tabIndex={presentation === 'embedded' ? 0 : undefined} onClick={presentation === 'embedded' ? expand : undefined} onKeyDown={onKeyDown}>
+    <header><span className="monitor-dot" style={{ background: rhythmColor }} /> MONITOR <small>{connected ? 'SENSOR ATIVO · MOTOR SIMULADO' : 'AGUARDANDO SENSOR'}</small>{presentation === 'embedded' && <button className="monitor-expand" aria-label="Ampliar monitor" onClick={(event) => { event.stopPropagation(); expand() }}>⛶</button>}{presentation === 'fullscreen' && <button className="monitor-close" aria-label="Fechar monitor" onClick={onClose}>Fechar ×</button>}</header>
+    <div className="wave-label"><span>ECG</span><b>{state.vitals.heartRate === null ? '—' : Math.round(state.vitals.heartRate)} BPM</b><em>{state.vitals.rhythm.replaceAll('_', ' ')}</em></div>
     <svg className="ecg" viewBox="0 0 200 78" role="img" aria-label="Eletrocardiograma simulado dependente da frequência cardíaca">
       <path d="M0 15H200M0 39H200M0 63H200M25 0V78M50 0V78M75 0V78M100 0V78M125 0V78M150 0V78M175 0V78" fill="none" stroke="#244153" strokeWidth=".55" />
       <polyline points={connected ? ecg : '0,39 200,39'} fill="none" stroke={connected ? rhythmColor : '#42536b'} strokeWidth="2" vectorEffect="non-scaling-stroke" />

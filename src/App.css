@@ -77,3 +77,37 @@ button:hover { transform: translateY(-1px); }
 .scene-pad { position: absolute; z-index: 3; top: 49%; width: 4.5%; aspect-ratio: .82; border: 2px solid #c7f3ec; border-radius: 35%; background: linear-gradient(150deg, #effffc, #9dd8d0); box-shadow: 0 2px 6px #000b; }.scene-pad.pad-a { left: 58%; transform: rotate(22deg); }.scene-pad.pad-b { left: 63%; top: 52%; transform: rotate(-20deg); }
 .scene.marina .scene-wound { left: 55%; top: 60%; }.scene-vignette.breathing { background: radial-gradient(ellipse at 60% 59%, #55ead21c, transparent 16%), linear-gradient(90deg, #0210194c, transparent 29%, transparent 69%, #02101952), linear-gradient(0deg, #010b1178, transparent 34%); animation: chest-glow 2.8s ease-in-out infinite; }
 @keyframes chest-glow { 50% { filter: brightness(1.12); } }
+
+/* Game-first layout: the ambulance is the playfield, not a scrolling web page. */
+.game-shell { height: 100svh; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; }
+.game-grid { grid-template-columns: minmax(0, 1fr) minmax(280px, 27vw); min-height: 0; height: 100%; align-items: stretch; padding: .55rem; gap: .55rem; }
+.scene { width: 100%; height: 100%; min-height: 0; aspect-ratio: auto; align-self: stretch; }
+.command-panel { grid-column: auto; height: 100%; max-height: none; min-height: 0; padding: .75rem; }
+.tool-dock { display: none; }
+.medical-note { position: relative; z-index: 7; padding: .28rem .8rem; font-size: .46rem; }
+
+.scene-monitor-slot { position: absolute; z-index: 8; top: 5.4%; left: 4.2%; width: clamp(130px, 21%, 220px); }
+.monitor-embedded { cursor: zoom-in; padding: .42rem; border-width: 2px; border-radius: 5px; box-shadow: 0 7px 18px #000a, inset 0 0 20px #173c4c55; }
+.monitor-embedded:focus-visible { outline: 2px solid #79f1e0; outline-offset: 3px; }
+.monitor-embedded header { gap: .2rem; font-size: .48rem; }
+.monitor-embedded header small { display: none; }
+.monitor-embedded .monitor-dot { width: 5px; height: 5px; }
+.monitor-expand, .monitor-close { margin-left: auto; color: #9bfff1; border: 1px solid #70e9db55; background: #44d6bf1a; font: 700 .62rem 'DM Mono', monospace; }
+.monitor-expand { width: 20px; height: 18px; padding: 0; }
+.monitor-embedded .wave-label { display: flex; align-items: baseline; gap: .28rem; margin-top: .28rem; color: #65ecd7; font: .46rem 'DM Mono', monospace; }
+.monitor-embedded .wave-label b { font-size: .66rem; }.monitor-embedded .wave-label em { margin-left: auto; color: #80a6b0; font-size: .39rem; font-style: normal; }
+.monitor-embedded .ecg { margin: .22rem 0 .1rem; }.monitor-embedded .pleth-wrap { display: none; }
+.monitor-embedded .vital { min-height: 33px; padding: .22rem 0; }.monitor-embedded .vital:nth-child(even) { padding-left: .3rem; }.monitor-embedded .vital span { font-size: .42rem; }.monitor-embedded .vital strong { font-size: .74rem; }.monitor-embedded .vital em { font-size: .37rem; }
+.monitor-embedded::after { right: .35rem; bottom: .22rem; font-size: .33rem; }
+
+.scene-caption { left: .72rem; bottom: 3.75rem; padding: .35rem .5rem; }.scene-caption small { display: none; }
+.scene-tool-dock { position: absolute; z-index: 9; right: 0; bottom: 0; left: 0; display: flex; gap: .35rem; align-items: stretch; overflow-x: auto; overscroll-behavior-x: contain; padding: .38rem .5rem; background: linear-gradient(0deg, #04131de8, #061824d2 78%, transparent); scrollbar-width: none; }.scene-tool-dock::-webkit-scrollbar { display: none; }
+.scene-tool-dock .tool { min-width: 59px; min-height: 42px; padding: .2rem .36rem; border: 1px solid #75d9d635; border-radius: 5px; background: #091d29e8; box-shadow: 0 4px 10px #0008; }.scene-tool-dock .tool:first-child { min-width: 70px; }.scene-tool-dock .tool > span { font-size: .95rem; }.scene-tool-dock .tool small { margin-top: .1rem; font-size: .43rem; white-space: nowrap; }
+.scene-tool-dock .tool.green { background: #167e647d; border-color: #65e3ae8a; }.scene-tool-dock .tool.coral { background: #9d3d4d91; border-color: #ff9da995; }
+
+.monitor-overlay { position: fixed; z-index: 40; inset: 0; display: grid; place-items: center; padding: clamp(.7rem, 3vw, 2rem); background: #020810df; backdrop-filter: blur(8px); }
+.monitor-fullscreen { width: min(1020px, 100%); max-height: calc(100svh - 1.4rem); padding: clamp(.75rem, 2vw, 1.4rem); overflow: auto; border-top-width: 4px; border-radius: 8px; box-shadow: 0 28px 90px #000e, inset 0 0 55px #173c4c66; }
+.monitor-fullscreen header { font-size: .72rem; }.monitor-fullscreen header small { font-size: .55rem; }.monitor-close { padding: .42rem .58rem; font-size: .62rem; }.monitor-fullscreen .wave-label { display: flex; align-items: baseline; gap: .7rem; margin-top: .75rem; color: #68ebd6; font: .64rem 'DM Mono', monospace; }.monitor-fullscreen .wave-label b { font-size: 1.1rem; }.monitor-fullscreen .wave-label em { color: #87a8b2; font-size: .55rem; font-style: normal; }.monitor-fullscreen .ecg { min-height: 210px; margin: .6rem 0; }.monitor-fullscreen .pleth-wrap { display: grid; grid-template-columns: 36px 1fr; align-items: center; gap: .5rem; color: #6fcce9; font: .55rem 'DM Mono', monospace; }.monitor-fullscreen .pleth-wrap svg { width: 100%; }.monitor-fullscreen .vital-grid { margin-top: .65rem; grid-template-columns: repeat(4, 1fr); }.monitor-fullscreen .vital { min-height: 88px; padding: .75rem .25rem; }.monitor-fullscreen .vital:nth-child(even) { padding-left: .8rem; }.monitor-fullscreen .vital strong { font-size: clamp(1.55rem, 4vw, 2.6rem); }
+
+@media (max-width: 760px) and (orientation: portrait) { .game-header { min-height: 48px; padding: .3rem .55rem; }.brand-button small { display: none; }.clock-control { grid-column: auto; justify-self: end; }.clock-control > span { display: none; }.game-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(170px, 34svh); padding: .35rem; }.command-panel { display: flex; grid-row: 2; height: auto; min-height: 0; }.scene { min-height: 0; }.scene-monitor-slot { width: clamp(118px, 29%, 210px); top: 5%; right: auto; left: 3%; }.scene-caption { bottom: 3.55rem; left: .45rem; transform: scale(.86); transform-origin: bottom left; }.medical-note { display: none; }.monitor-fullscreen .ecg { min-height: 145px; }.monitor-fullscreen .vital-grid { grid-template-columns: 1fr 1fr; }.monitor-fullscreen .vital { min-height: 64px; } }
+@media (max-width: 900px) and (orientation: landscape) { .game-header { min-height: 44px; padding: .22rem .6rem; }.brand-button small, .case-chip { display: none; }.game-grid { grid-template-columns: minmax(0, 1fr) minmax(220px, 29vw); padding: .35rem; }.command-panel { padding: .55rem; }.panel-title { padding-bottom: .45rem; }.panel-content { padding-top: .45rem; }.medical-note { display: none; }.scene-caption { bottom: 3.45rem; }.scene-tool-dock { padding: .28rem .35rem; }.scene-tool-dock .tool { min-width: 50px; min-height: 35px; }.scene-tool-dock .tool:first-child { min-width: 60px; }.scene-tool-dock .tool > span { font-size: .78rem; }.scene-tool-dock .tool small { font-size: .36rem; }.scene-monitor-slot { width: clamp(118px, 22%, 205px); }.monitor-embedded .vital { min-height: 27px; }.monitor-embedded .vital strong { font-size: .62rem; } }
