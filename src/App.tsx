@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import { CASES, INTERVENTIONS, INVESTIGATIONS, MEDICATIONS } from './content/cases'
 import { Monitor } from './components/Monitor'
+import { MissionPulse } from './components/MissionPulse'
+import type { MissionTarget } from './components/MissionPulse'
 import { PatientScene } from './components/PatientScene'
 import { advanceTime, administerMedication, createCaseState, defibrillate, evaluateOutcome, investigate, intervene, registerCompression, setVentilation, startInfusion } from './engine/clinical'
 import type { ActionResult, CaseId, Destination, GameState, LogEntry, ScoreReport } from './engine/types'
@@ -46,6 +48,7 @@ function App() {
   if (screen === 'report' && report && game && scenario) return <Report state={game} scenario={scenario} report={report} onRetry={() => start(game.caseId, game.seed)} onNew={startAssigned} onHome={() => setScreen('home')} />
   if (!game || !scenario) return null
   const openFinish = (destination: Destination) => { setQuickDestination(destination); setPanel('finish') }
+  const followMission = (target: MissionTarget) => { if (target === 'compress') { runResult(registerCompression(game)); return } if (target === 'finish') { openFinish('hospital'); return } setPanel(target) }
   return <main className="game-shell">
     <header className="game-header">
       <button className="brand-button" onClick={() => setScreen('home')} aria-label="Encerrar visualização e voltar ao início"><span>VALE</span> RESCUE <small>PLANTÃO / {mode.toUpperCase()}</small></button>
@@ -62,6 +65,7 @@ function App() {
         </nav>
       </PatientScene>
       <section className="command-panel" aria-live="polite">
+        <MissionPulse state={game} onSelect={followMission} />
         <PanelTitle panel={panel} scenario={scenario.title} />
         {panel === 'record' && <RecordPanel state={game} />}
         {panel === 'research' && <ResearchPanel state={game} onAction={(id) => runResult(investigate(game, id))} />}

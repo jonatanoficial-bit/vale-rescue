@@ -5,6 +5,7 @@ test('inicia uma ocorrência e gera relatório', async ({ page }) => {
   await page.getByRole('button', { name: /entrar no plantão/i }).click()
   await expect(page.getByRole('dialog', { name: /despacho da central/i })).toBeVisible()
   await page.getByRole('button', { name: /confirmar recebimento/i }).click()
+  await expect(page.getByRole('region', { name: /roteiro simulado da missão/i })).toBeVisible()
   await expect(page.getByRole('button', { name: /prontuário/i })).toBeVisible()
   await page.getByRole('button', { name: /ampliar monitor/i }).click()
   await expect(page.getByRole('dialog', { name: /monitor ampliado/i })).toBeVisible()
