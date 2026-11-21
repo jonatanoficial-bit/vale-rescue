@@ -79,6 +79,46 @@ export const CASES: Record<CaseId, CaseDefinition> = {
     interventions: ['monitor', 'airway', 'call_support'], medications: ['emergency-adjunct'], safeDestinations: ['hospital', 'advanced_team'], expectedActions: ['monitor', 'compress', 'shock', 'ventilation'],
     summary: 'Cenário totalmente fictício: a interface registra compressões, etapas do desfibrilador e ventilação, sem ensinar protocolo real.'
   },
+  'CASE-014': {
+    id: 'CASE-014', title: 'Queda em casa', shortTitle: 'Queda', category: 'Trauma', priority: 'Rotina', unlockXp: 120,
+    patient: { name: 'Davi Rocha', age: 67, gender: 'Homem', bodyPreset: 'caio' },
+    dispatch: 'Pessoa encontrada sentada após queda doméstica fictícia; relata incômodo no braço e está consciente.',
+    witness: '“Ele disse que escorregou, mas não soube explicar se bateu a cabeça.”', history: 'Informações do local incompletas; sem alergias registradas no roteiro.',
+    baseline: { heartRate: 98, systolicBP: 132, diastolicBP: 82, spo2: 96, respiratoryRate: 20, temperatureC: 36.5, glucoseMgDl: 101, rhythm: 'sinus', pulsePresent: true, consciousness: 'alert' },
+    findings: { observation: 'Paciente acordado; relato e mecanismo da queda precisam ser registrados no cenário.', consciousness: 'Responde de forma organizada na simulação.', bp: 'Leitura disponível após avaliação.', temperature: 'Sem alteração relevante no roteiro.', spo2: 'Leitura preservada no sensor.', glucose: 'Sem alteração prioritária na simulação.', chest: 'Sem achado prioritário relatado.', arm_left: 'Queixa de incômodo no membro, sem ferida aberta visível.' },
+    investigations: ['observation', 'consciousness', 'bp', 'spo2', 'arm_left'], interventions: ['monitor', 'position', 'call_support'], medications: [], safeDestinations: ['hospital'], expectedActions: ['observation', 'arm_left', 'position'],
+    summary: 'Caso de observação e registro. A pontuação valoriza avaliação, comunicação e decisão de destino do roteiro.'
+  },
+  'CASE-018': {
+    id: 'CASE-018', title: 'Tontura no mercado', shortTitle: 'Tontura', category: 'Investigação', priority: 'Rotina', unlockXp: 250,
+    patient: { name: 'Luana Reis', age: 29, gender: 'Mulher', bodyPreset: 'marina' },
+    dispatch: 'Pessoa com tontura e palidez em mercado fictício; permanece consciente e acompanhada.',
+    witness: '“Ela ficou pálida e precisou sentar, mas está falando com a gente.”', history: 'Relata rotina alimentar irregular no dia; demais dados precisam ser conferidos no jogo.',
+    baseline: { heartRate: 102, systolicBP: 108, diastolicBP: 70, spo2: 98, respiratoryRate: 19, temperatureC: 36.7, glucoseMgDl: 74, rhythm: 'sinus', pulsePresent: true, consciousness: 'alert' },
+    findings: { observation: 'Paciente consciente, pálida e cooperativa no cenário.', consciousness: 'Alerta e orientada na simulação.', bp: 'Leitura sem instabilidade importante no roteiro.', temperature: 'Sem alteração relevante.', spo2: 'Leitura adequada no sensor.', glucose: 'Valor de cenário abaixo do alvo da missão.', chest: 'Sem achado prioritário no caso.', arm_left: 'Sem alteração visual.' },
+    investigations: ['observation', 'consciousness', 'bp', 'spo2', 'glucose'], interventions: ['monitor', 'position', 'call_support'], medications: ['glucose-gel'], safeDestinations: ['discharge', 'hospital'], expectedActions: ['observation', 'glucose', 'monitor'],
+    summary: 'Missão variável de investigação. O resultado depende da leitura registrada e da decisão documentada.'
+  },
+  'CASE-019': {
+    id: 'CASE-019', title: 'Desconforto no tórax', shortTitle: 'Tórax', category: 'Avaliação', priority: 'Prioridade', unlockXp: 400,
+    patient: { name: 'Henrique Dias', age: 54, gender: 'Homem', bodyPreset: 'caio' },
+    dispatch: 'Pessoa com desconforto no tórax descrito de forma inespecífica em residência fictícia. Está consciente.',
+    witness: '“Começou há pouco; ele ficou parado e pediu ajuda.”', history: 'Roteiro sem diagnóstico definido. A missão exige coleta e comunicação, não prescrição.',
+    baseline: { heartRate: 108, systolicBP: 148, diastolicBP: 90, spo2: 95, respiratoryRate: 23, temperatureC: 36.6, glucoseMgDl: 108, rhythm: 'sinus', pulsePresent: true, consciousness: 'voice' },
+    findings: { observation: 'Desconforto referido e ansiedade no cenário; sem diagnóstico automático.', consciousness: 'Responde à voz e à entrevista fictícia.', bp: 'Pressão alterada no roteiro, requer registro.', temperature: 'Sem alteração relevante.', spo2: 'Leitura preservada, porém exige observação.', glucose: 'Sem alteração prioritária.', chest: 'Queixa localizada; o jogo não determina uma causa.' },
+    investigations: ['observation', 'consciousness', 'bp', 'spo2', 'glucose', 'chest'], interventions: ['monitor', 'position', 'call_support'], medications: [], safeDestinations: ['hospital', 'advanced_team'], expectedActions: ['observation', 'chest', 'call_support'],
+    summary: 'Cenário de comunicação e destino. O jogo não diagnostica a causa do desconforto.'
+  },
+  'CASE-021': {
+    id: 'CASE-021', title: 'Sinais neurológicos súbitos', shortTitle: 'Suspeita AVC', category: 'Neurológico', priority: 'Crítico', unlockXp: 500, requiredCertification: 'stroke',
+    patient: { name: 'Renata Farias', age: 61, gender: 'Mulher', bodyPreset: 'marina' },
+    dispatch: 'Alteração súbita de fala e força relatada por acompanhante em cenário fictício. A Central pede registro do horário referido.',
+    witness: '“Ela estava bem quando a vi antes; agora fala enrolado e um lado parece fraco.”', history: 'Histórico do jogo incompleto. A causa não é confirmada fora de avaliação profissional e imagem.',
+    baseline: { heartRate: 92, systolicBP: 156, diastolicBP: 94, spo2: 97, respiratoryRate: 18, temperatureC: 36.8, glucoseMgDl: 106, rhythm: 'sinus', pulsePresent: true, consciousness: 'voice' },
+    findings: { observation: 'Há relato de início súbito de alteração focal no roteiro; registre o horário informado.', consciousness: 'Paciente entende parcialmente as perguntas da simulação.', bp: 'Leitura elevada no cenário; sem conduta automatizada pelo jogo.', temperature: 'Sem alteração relevante.', spo2: 'Leitura preservada no sensor.', glucose: 'Dado de cenário disponível para excluir causa alternativa no roteiro.', chest: 'Sem achado respiratório prioritário.', arm_left: 'Assimetria relatada no membro, sem diagnóstico automático.' },
+    investigations: ['observation', 'consciousness', 'bp', 'spo2', 'glucose', 'arm_left'], interventions: ['monitor', 'position', 'iv_access', 'call_support'], medications: [], safeDestinations: ['hospital', 'advanced_team'], expectedActions: ['observation', 'consciousness', 'call_support'],
+    summary: 'Módulo de reconhecimento fictício desbloqueado após a certificação de estudo. A missão privilegia registro e destino, não medicação ou diagnóstico.'
+  },
 }
 
 export const CASE_LIST = Object.values(CASES)

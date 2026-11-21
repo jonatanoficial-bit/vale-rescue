@@ -1,4 +1,5 @@
 import type { GameState, ScoreReport } from '../engine/types'
+import type { CareerProfile } from '../engine/career'
 
 const DATABASE = 'vale-rescue-local'
 const STORE = 'records'
@@ -45,3 +46,5 @@ export const saveReport = async (state: GameState, report: ScoreReport) => {
 }
 
 export const loadHistory = () => get<Array<{ state: GameState; report: ScoreReport }>>('history')
+export const saveCareerProfile = (profile: CareerProfile) => put('career-profile', profile)
+export const loadCareerProfile = () => get<CareerProfile>('career-profile')

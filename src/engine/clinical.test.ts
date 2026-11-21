@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { advanceTime, createCaseState, defibrillate, evaluateOutcome, investigate, intervene, registerCompression, setVentilation } from './clinical'
+import { administerMedication, advanceTime, createCaseState, defibrillate, evaluateOutcome, investigate, intervene, registerCompression, setVentilation } from './clinical'
 
 describe('motor do Vale Rescue', () => {
   it('mantém a investigação separada da fisiologia', () => {
@@ -23,7 +23,7 @@ describe('motor do Vale Rescue', () => {
 
   it('exige inspeção e trata visualmente a ferida simulada', () => {
     const initial = createCaseState('CASE-004', 56)
-    expect(intervene(initial, 'control_bleeding').feedback.code).toBe('AÇÃO_REQUER_AVALIAÇÃO')
+    expect(intervene(initial, 'control_bleeding').feedback.code).toBe('AÇÃO_SEM_AVALIAÇÃO')
     const inspected = investigate(initial, 'arm_left').nextState
     const treated = intervene(inspected, 'control_bleeding').nextState
     expect(treated.wounds[0]).toMatchObject({ treated: true, severity: 0.22 })
@@ -66,5 +66,13 @@ describe('motor do Vale Rescue', () => {
     const discharge = evaluateOutcome(state, 'discharge', 'Trauma simulado', 'Alta')
     expect(hospital.score).toBeGreaterThan(discharge.score)
     expect(hospital.score).toBeLessThanOrEqual(1000)
+  })
+
+  it('registra consequência simulada ao tentar item incompatível com o cenário', () => {
+    const initial = createCaseState('CASE-004', 19)
+    const result = administerMedication(initial, 'bronchodilator')
+    expect(result.feedback.code).toBe('MEDICAÇÃO_INCOMPATÍVEL')
+    expect(result.nextState.penalties).toBeGreaterThan(initial.penalties)
+    expect(result.nextState.elapsedSeconds).toBeGreaterThan(initial.elapsedSeconds)
   })
 })

@@ -3,6 +3,22 @@ import type { ActionResult, CaseId, Destination, GameState, LogEntry, ScoreRepor
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
+const seededOffset = (seed: number, channel: number, amplitude: number) => {
+  const value = Math.sin((seed + 17) * (channel + 3) * 12.9898) * 43758.5453
+  return (value - Math.floor(value) - .5) * 2 * amplitude
+}
+
+const varyVitals = (baseline: GameState['vitals'], seed: number): GameState['vitals'] => ({
+  ...baseline,
+  heartRate: baseline.heartRate === null ? null : clamp(Math.round(baseline.heartRate + seededOffset(seed, 1, 5)), 30, 180),
+  systolicBP: baseline.systolicBP === null ? null : clamp(Math.round(baseline.systolicBP + seededOffset(seed, 2, 6)), 60, 220),
+  diastolicBP: baseline.diastolicBP === null ? null : clamp(Math.round(baseline.diastolicBP + seededOffset(seed, 3, 4)), 35, 140),
+  spo2: baseline.spo2 === null ? null : clamp(Math.round(baseline.spo2 + seededOffset(seed, 4, 1)), 55, 100),
+  respiratoryRate: baseline.respiratoryRate === null ? null : clamp(Math.round(baseline.respiratoryRate + seededOffset(seed, 5, 2)), 0, 45),
+  temperatureC: baseline.temperatureC === null ? null : Math.round((baseline.temperatureC + seededOffset(seed, 6, .25)) * 10) / 10,
+  glucoseMgDl: baseline.glucoseMgDl === null ? null : clamp(Math.round(baseline.glucoseMgDl + seededOffset(seed, 7, 7)), 35, 350),
+})
+
 const copyState = (state: GameState): GameState => ({
   ...state,
   vitals: { ...state.vitals }, wounds: state.wounds.map((wound) => ({ ...wound })),
@@ -20,10 +36,19 @@ const reject = (state: GameState, code: string, outcome: string, penalty = 0): A
   return finish(next, entry(next, code, outcome, penalty ? 'danger' : 'warning'))
 }
 
+const unsafeAttempt = (state: GameState, code: string, outcome: string, penalty = 18): ActionResult => {
+  const next = copyState(spendTime(state, 8))
+  next.penalties += penalty
+  if (next.vitals.heartRate !== null) next.vitals.heartRate = clamp(next.vitals.heartRate + 4, 0, 180)
+  if (next.vitals.spo2 !== null) next.vitals.spo2 = clamp(next.vitals.spo2 - 1, 0, 100)
+  if (next.vitals.systolicBP !== null) next.vitals.systolicBP = clamp(next.vitals.systolicBP - 2, 50, 230)
+  return finish(next, entry(next, code, `${outcome} O motor registrou risco e alteração fisiológica apenas simulados.`, 'danger'))
+}
+
 export const createCaseState = (caseId: CaseId, seed = Math.floor(Date.now() % 1000000)): GameState => {
   const scenario = CASES[caseId]
   const state: GameState = {
-    schemaVersion: 1, caseId, seed, elapsedSeconds: 0, speed: 1, vitals: { ...scenario.baseline }, monitorConnected: true,
+    schemaVersion: 1, caseId, seed, elapsedSeconds: 0, speed: 1, vitals: varyVitals(scenario.baseline, seed), monitorConnected: true,
     knownInvestigations: [], completedInterventions: ['monitor'], medicationsGiven: [], wounds: scenario.wound ? [{ ...scenario.wound }] : [],
     defibrillator: { pads: false, charged: false, cleared: false, shocked: false }, ventilation: 'off', compressions: 0,
     infusionActive: false, actionLog: [], penalties: 0, status: 'active',
@@ -44,9 +69,9 @@ export const investigate = (state: GameState, investigationId: string): ActionRe
 
 export const intervene = (state: GameState, interventionId: string): ActionResult => {
   const scenario = CASES[state.caseId]
-  if (!scenario.interventions.includes(interventionId)) return reject(state, 'AÇÃO_BLOQUEADA', 'Procedimento indisponível: não indicado ou não previsto para este cenário.')
+  if (!scenario.interventions.includes(interventionId)) return unsafeAttempt(state, 'AÇÃO_INCOMPATÍVEL', 'Ação incompatível com este cenário ou sem autorização no roteiro.')
   if (state.completedInterventions.includes(interventionId)) return reject(state, 'AÇÃO_REPETIDA', 'Ação já concluída: reavalie o paciente antes de repeti-la.')
-  if (interventionId === 'control_bleeding' && !state.knownInvestigations.includes('arm_left')) return reject(state, 'AÇÃO_REQUER_AVALIAÇÃO', 'Controle indisponível: avalie primeiro a região do ferimento.')
+  if (interventionId === 'control_bleeding' && !state.knownInvestigations.includes('arm_left')) return unsafeAttempt(state, 'AÇÃO_SEM_AVALIAÇÃO', 'Ação tentada sem a avaliação prévia requerida pelo cenário.', 12)
   const next = copyState(spendTime(state, 15))
   next.completedInterventions.push(interventionId)
   if (interventionId === 'monitor') next.monitorConnected = true
@@ -70,9 +95,9 @@ export const intervene = (state: GameState, interventionId: string): ActionResul
 
 export const administerMedication = (state: GameState, medicationId: string): ActionResult => {
   const scenario = CASES[state.caseId]
-  if (!scenario.medications.includes(medicationId)) return reject(state, 'MEDICAÇÃO_BLOQUEADA', 'Item indisponível: não é indicado ou autorizado pelo roteiro deste caso.')
+  if (!scenario.medications.includes(medicationId)) return unsafeAttempt(state, 'MEDICAÇÃO_INCOMPATÍVEL', 'Item não autorizado pelo roteiro deste paciente fictício.', 25)
   if (state.medicationsGiven.includes(medicationId)) return reject(state, 'MEDICAÇÃO_REPETIDA', 'Item já registrado neste atendimento.')
-  if (medicationId === 'glucose-gel' && !state.knownInvestigations.includes('glucose')) return reject(state, 'MEDICAÇÃO_REQUER_AVALIAÇÃO', 'Item bloqueado: a glicemia precisa ser investigada antes da decisão simulada.')
+  if (medicationId === 'glucose-gel' && !state.knownInvestigations.includes('glucose')) return unsafeAttempt(state, 'MEDICAÇÃO_SEM_AVALIAÇÃO', 'Item tentado sem a avaliação requerida pelo roteiro.', 18)
   const next = copyState(spendTime(state, 10))
   next.medicationsGiven.push(medicationId)
   if (medicationId === 'glucose-gel') { next.vitals.heartRate = Math.max(72, (next.vitals.heartRate ?? 72) - 8); next.vitals.glucoseMgDl = 88 }

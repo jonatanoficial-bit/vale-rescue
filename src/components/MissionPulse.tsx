@@ -13,12 +13,16 @@ type MissionStep = {
 const stepFor = (id: string): MissionStep => {
   const shared = {
     monitor: { label: 'Monitor conectado', target: 'actions' as const, done: (state: GameState) => state.completedInterventions.includes('monitor') },
+    observation: { label: 'Fazer observação inicial', target: 'research' as const, done: (state: GameState) => state.knownInvestigations.includes('observation') },
+    consciousness: { label: 'Registrar consciência', target: 'research' as const, done: (state: GameState) => state.knownInvestigations.includes('consciousness') },
     glucose: { label: 'Coletar dado do cenário', target: 'research' as const, done: (state: GameState) => state.knownInvestigations.includes('glucose') },
     spo2: { label: 'Checar o sensor', target: 'research' as const, done: (state: GameState) => state.knownInvestigations.includes('spo2') },
     oxygen: { label: 'Executar suporte do roteiro', target: 'actions' as const, done: (state: GameState) => state.completedInterventions.includes('oxygen') },
     airway: { label: 'Reavaliar via do cenário', target: 'actions' as const, done: (state: GameState) => state.completedInterventions.includes('airway') },
     arm_left: { label: 'Avaliar a região indicada', target: 'research' as const, done: (state: GameState) => state.knownInvestigations.includes('arm_left') },
     control_bleeding: { label: 'Concluir ação contextual', target: 'actions' as const, done: (state: GameState) => state.completedInterventions.includes('control_bleeding') },
+    position: { label: 'Registrar posicionamento', target: 'actions' as const, done: (state: GameState) => state.completedInterventions.includes('position') },
+    call_support: { label: 'Acionar a Central', target: 'actions' as const, done: (state: GameState) => state.completedInterventions.includes('call_support') },
     compress: { label: 'Completar sequência de treino', target: 'compress' as const, done: (state: GameState) => state.compressions >= 8 },
     shock: { label: 'Concluir etapas do dispositivo', target: 'defib' as const, done: (state: GameState) => state.defibrillator.shocked },
     ventilation: { label: 'Ativar suporte de treino', target: 'ventilation' as const, done: (state: GameState) => state.ventilation === 'running' },

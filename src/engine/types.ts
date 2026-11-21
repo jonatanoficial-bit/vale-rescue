@@ -1,8 +1,8 @@
-export type CaseId = 'CASE-001' | 'CASE-003' | 'CASE-004' | 'CASE-011'
+export type CaseId = 'CASE-001' | 'CASE-003' | 'CASE-004' | 'CASE-011' | 'CASE-014' | 'CASE-018' | 'CASE-019' | 'CASE-021'
 
 export type Destination = 'discharge' | 'hospital' | 'advanced_team'
 
-export type Rhythm = 'sinus' | 'respiratory_stress' | 'blood_loss_stress' | 'vf' | 'post_shock'
+export type Rhythm = 'sinus' | 'respiratory_stress' | 'blood_loss_stress' | 'vf' | 'asystole' | 'post_shock'
 
 export type VitalState = {
   heartRate: number | null
@@ -75,6 +75,8 @@ export type CaseDefinition = {
   medications: string[]
   safeDestinations: Destination[]
   expectedActions: string[]
+  unlockXp?: number
+  requiredCertification?: 'stroke'
   wound?: Wound
   summary: string
 }
