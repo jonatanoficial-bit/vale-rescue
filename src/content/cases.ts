@@ -22,13 +22,29 @@ export const INTERVENTIONS = [
 ] as const
 
 export const MEDICATIONS = [
-  { id: 'glucose-gel', label: 'Glicose oral', category: 'Metabólico', evidence: 'Nome real · modelo de cenário' },
-  { id: 'bronchodilator', label: 'Salbutamol', category: 'Respiratório', evidence: 'Nome real · modelo de cenário' },
-  { id: 'analgesic', label: 'Dipirona', category: 'Analgésico', evidence: 'Nome real · modelo de cenário' },
-  { id: 'hydration', label: 'Cloreto de sódio 0,9%', category: 'Solução intravenosa', evidence: 'Nome real · modelo de cenário' },
-  { id: 'reversal', label: 'Naloxona', category: 'Antagonista', evidence: 'Nome real · modelo de cenário' },
-  { id: 'epinephrine', label: 'Adrenalina (epinefrina)', category: 'Vasoativo de protocolo', evidence: 'Nome real · risco monitorado' },
-  { id: 'propofol', label: 'Propofol', category: 'Anestésico/sedativo controlado', evidence: 'Nome real · risco monitorado' },
+  { id: 'glucose-gel', label: 'Glicose', category: 'Controle glicêmico', evidence: 'Catálogo real · modelo pendente' },
+  { id: 'bronchodilator', label: 'Salbutamol', category: 'Respiratório', evidence: 'Catálogo real · modelo pendente' },
+  { id: 'analgesic', label: 'Dipirona', category: 'Analgésico', evidence: 'Catálogo real · modelo pendente' },
+  { id: 'hydration', label: 'Cloreto de sódio 0,9%', category: 'Solução para contexto de missão', evidence: 'Catálogo real · modelo pendente' },
+  { id: 'reversal', label: 'Naloxona', category: 'Antagonista', evidence: 'Catálogo real · modelo pendente' },
+  { id: 'epinephrine', label: 'Adrenalina (epinefrina)', category: 'Vasoativo', evidence: 'Revisão clínica obrigatória' },
+  { id: 'atropine', label: 'Atropina', category: 'Bradiarritmia contextual', evidence: 'Revisão clínica obrigatória' },
+  { id: 'amiodarone', label: 'Amiodarona', category: 'Antiarrítmico contextual', evidence: 'Revisão clínica obrigatória' },
+  { id: 'ketorolac', label: 'Cetorolaco', category: 'Analgésico anti-inflamatório', evidence: 'Revisão clínica obrigatória' },
+  { id: 'morphine', label: 'Morfina', category: 'Opioide controlado', evidence: 'Revisão clínica obrigatória' },
+  { id: 'heparin', label: 'Heparina', category: 'Anticoagulante', evidence: 'Revisão clínica obrigatória' },
+  { id: 'streptokinase', label: 'Estreptoquinase', category: 'Trombolítico', evidence: 'Revisão clínica obrigatória' },
+  { id: 'insulin', label: 'Insulina', category: 'Controle glicêmico', evidence: 'Revisão clínica obrigatória' },
+  { id: 'magnesium-sulfate', label: 'Sulfato de magnésio', category: 'Uso contextual restrito', evidence: 'Revisão clínica obrigatória' },
+  { id: 'lytic-mixture', label: 'Mistura lítica', category: 'Termo não padronizado no motor', evidence: 'Revisão clínica obrigatória' },
+  { id: 'aminophylline', label: 'Aminofilina (Eufilina)', category: 'Broncodilatador restrito', evidence: 'Revisão clínica obrigatória' },
+  { id: 'etamsylate', label: 'Etamsilato', category: 'Hemostático contextual', evidence: 'Revisão clínica obrigatória' },
+  { id: 'emoxipine', label: 'Emoxipina', category: 'Disponibilidade/protocolo regional', evidence: 'Revisão clínica obrigatória' },
+  { id: 'dopamine', label: 'Dopamina', category: 'Vasoativo', evidence: 'Revisão clínica obrigatória' },
+  { id: 'acizol', label: 'Acizol', category: 'Disponibilidade/protocolo regional', evidence: 'Revisão clínica obrigatória' },
+  { id: 'nitroglycerin', label: 'Nitroglicerina', category: 'Vasoativo contextual', evidence: 'Revisão clínica obrigatória' },
+  { id: 'activated-charcoal', label: 'Carvão ativado', category: 'Descontaminação contextual', evidence: 'Revisão clínica obrigatória' },
+  { id: 'propofol', label: 'Propofol', category: 'Anestésico/sedativo controlado', evidence: 'Revisão clínica obrigatória' },
 ] as const
 
 export const CASES: Record<CaseId, CaseDefinition> = {

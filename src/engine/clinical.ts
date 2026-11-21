@@ -46,21 +46,9 @@ const unsafeAttempt = (state: GameState, code: string, outcome: string, penalty 
 }
 
 const medicationRiskAttempt = (state: GameState, medicationId: string): ActionResult => {
-  if (medicationId !== 'epinephrine' && medicationId !== 'propofol') return unsafeAttempt(state, 'MEDICAÇÃO_INCOMPATÍVEL', 'Item não autorizado pelo roteiro deste paciente fictício.', 25)
   const next = copyState(spendTime(state, 8))
   next.penalties += 25
-  if (medicationId === 'epinephrine') {
-    if (next.vitals.heartRate !== null) next.vitals.heartRate = clamp(next.vitals.heartRate + 12, 0, 190)
-    if (next.vitals.systolicBP !== null) next.vitals.systolicBP = clamp(next.vitals.systolicBP + 16, 50, 240)
-    return finish(next, entry(next, 'RISCO_EPINEFRINA', 'Adrenalina registrada fora do protocolo do caso. O motor aplicou um padrão fictício de ativação cardiovascular e risco de arritmia; não representa dose, via ou previsão para uma pessoa real.', 'danger'))
-  }
-  if (medicationId === 'propofol') {
-    if (next.vitals.systolicBP !== null) next.vitals.systolicBP = clamp(next.vitals.systolicBP - 14, 50, 240)
-    if (next.vitals.spo2 !== null) next.vitals.spo2 = clamp(next.vitals.spo2 - 4, 0, 100)
-    if (next.vitals.respiratoryRate !== null) next.vitals.respiratoryRate = clamp(next.vitals.respiratoryRate - 5, 0, 45)
-    return finish(next, entry(next, 'RISCO_PROPOFOL', 'Propofol registrado fora do protocolo do caso. O motor aplicou um padrão fictício de depressão cardiorrespiratória; não representa dose, via ou previsão para uma pessoa real.', 'danger'))
-  }
-  return unsafeAttempt(state, 'MEDICAÇÃO_INCOMPATÍVEL', 'Item não autorizado pelo roteiro deste paciente fictício.', 25)
+  return finish(next, entry(next, 'MEDICAÇÃO_SEM_MODELO_VALIDADO', `Tentativa de ${medicationId} fora do roteiro do caso. O evento foi marcado como risco; o jogo não inventa alteração fixa de sinais vitais sem modelo aprovado por responsável clínico.`, 'danger'))
 }
 
 export const createCaseState = (caseId: CaseId, seed = Math.floor(Date.now() % 1000000)): GameState => {
@@ -118,11 +106,7 @@ export const administerMedication = (state: GameState, medicationId: string): Ac
   if (medicationId === 'glucose-gel' && !state.knownInvestigations.includes('glucose')) return unsafeAttempt(state, 'MEDICAÇÃO_SEM_AVALIAÇÃO', 'Item tentado sem a avaliação requerida pelo roteiro.', 18)
   const next = copyState(spendTime(state, 10))
   next.medicationsGiven.push(medicationId)
-  if (medicationId === 'glucose-gel') { next.vitals.heartRate = Math.max(72, (next.vitals.heartRate ?? 72) - 8); next.vitals.glucoseMgDl = 88 }
-  if (medicationId === 'bronchodilator') { next.vitals.spo2 = clamp((next.vitals.spo2 ?? 0) + 2, 0, 100); next.vitals.heartRate = (next.vitals.heartRate ?? 90) + 2 }
-  if (medicationId === 'analgesic') next.vitals.heartRate = Math.max(60, (next.vitals.heartRate ?? 72) - 3)
-  if (medicationId === 'hydration') next.vitals.systolicBP = (next.vitals.systolicBP ?? 100) + 4
-  return finish(next, entry(next, 'MEDICAÇÃO', 'Medicamento real registrado somente dentro do roteiro ficcional. Sem dose, via, posologia ou previsão clínica individual.', 'success'))
+  return finish(next, entry(next, 'MEDICAÇÃO_REGISTRADA', 'Medicamento catalogado foi registrado no roteiro de missão. A resposta individual permanece não modelada até validação clínica, fonte e critérios de cenário.', 'success'))
 }
 
 export const registerCompression = (state: GameState): ActionResult => {

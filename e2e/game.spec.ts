@@ -16,11 +16,11 @@ test('inicia uma ocorrência e gera relatório', async ({ page }) => {
   await expect(page.getByText('/ 1000')).toBeVisible()
 })
 
-test('abre a carreira e a academia com bloqueio por XP', async ({ page }) => {
+test('abre a carreira e os protocolos de missão com bloqueio por XP', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: /carreira e garagem/i }).click()
   await expect(page.getByRole('heading', { name: 'Cadete' })).toBeVisible()
-  await page.getByRole('button', { name: /abrir academia/i }).click()
-  await expect(page.getByRole('heading', { name: /trilhas de estudo/i })).toBeVisible()
+  await page.getByRole('button', { name: /abrir protocolos/i }).click()
+  await expect(page.getByRole('heading', { name: /trilhas de missão/i })).toBeVisible()
   await expect(page.getByText(/requer 500 xp/i)).toBeVisible()
 })

@@ -68,20 +68,22 @@ describe('motor do Vale Rescue', () => {
     expect(hospital.score).toBeLessThanOrEqual(1000)
   })
 
-  it('registra consequência simulada específica ao tentar propofol fora do cenário', () => {
+  it('não inventa uma resposta individual ao tentar medicamento fora do roteiro', () => {
     const initial = createCaseState('CASE-004', 19)
     const result = administerMedication(initial, 'propofol')
-    expect(result.feedback.code).toBe('RISCO_PROPOFOL')
+    expect(result.feedback.code).toBe('MEDICAÇÃO_SEM_MODELO_VALIDADO')
     expect(result.nextState.penalties).toBeGreaterThan(initial.penalties)
     expect(result.nextState.elapsedSeconds).toBeGreaterThan(initial.elapsedSeconds)
-    expect(result.nextState.vitals.spo2).toBeLessThan(initial.vitals.spo2 ?? 100)
+    expect(result.nextState.vitals).toEqual(advanceTime(initial, 8).vitals)
   })
 
-  it('registra padrão cardiovascular fictício ao tentar adrenalina fora do roteiro', () => {
-    const initial = createCaseState('CASE-004', 21)
-    const result = administerMedication(initial, 'epinephrine')
-    expect(result.feedback.code).toBe('RISCO_EPINEFRINA')
-    expect(result.nextState.vitals.heartRate).toBeGreaterThan(initial.vitals.heartRate ?? 0)
-    expect(result.nextState.vitals.systolicBP).toBeGreaterThan(initial.vitals.systolicBP ?? 0)
+  it('registra item contextual sem declarar resposta fisiológica de uma pessoa', () => {
+    let state = createCaseState('CASE-001', 21)
+    state = investigate(state, 'glucose').nextState
+    const before = { ...state.vitals }
+    const result = administerMedication(state, 'glucose-gel')
+    expect(result.feedback.code).toBe('MEDICAÇÃO_REGISTRADA')
+    expect(result.nextState.medicationsGiven).toContain('glucose-gel')
+    expect(result.nextState.vitals).toEqual(before)
   })
 })
