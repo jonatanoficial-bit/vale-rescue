@@ -48,6 +48,7 @@ export type GameState = {
   knownInvestigations: string[]
   completedInterventions: string[]
   medicationsGiven: string[]
+  protocolEvents: string[]
   wounds: Wound[]
   defibrillator: DefibrillatorState
   ventilation: 'off' | 'connected' | 'running'
@@ -73,6 +74,8 @@ export type CaseDefinition = {
   investigations: string[]
   interventions: string[]
   medications: string[]
+  protocolSequence: string[]
+  diagnosticKeywords: string[]
   safeDestinations: Destination[]
   expectedActions: string[]
   unlockXp?: number

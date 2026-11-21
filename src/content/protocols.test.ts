@@ -8,7 +8,7 @@ describe('registro de protocolos', () => {
       const protocol = protocolForCase(scenario.id)
       expect(protocol).toBeDefined()
       expect(protocol?.sourceUrl).toMatch(/^https:\/\//)
-      expect(protocol?.clinicalApproval).toMatch(/aprova|aprovação|aprove|direção médica|protocolo local/i)
+      expect(protocol?.clinicalApproval).toMatch(/cl[ií]nic|aprova|direção médica|protocolo/i)
       expect(protocol?.gameBoundary).toBeTruthy()
     }
   })

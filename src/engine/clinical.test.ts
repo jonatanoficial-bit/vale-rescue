@@ -86,4 +86,29 @@ describe('motor do Vale Rescue', () => {
     expect(result.nextState.medicationsGiven).toContain('glucose-gel')
     expect(result.nextState.vitals).toEqual(before)
   })
+
+  it('recompensa a sequência de referência e dá crédito parcial fora de ordem', () => {
+    let ordered = createCaseState('CASE-001', 44)
+    ordered = investigate(ordered, 'observation').nextState
+    ordered = investigate(ordered, 'glucose').nextState
+    ordered = administerMedication(ordered, 'glucose-gel').nextState
+
+    let reordered = createCaseState('CASE-001', 44)
+    reordered = investigate(reordered, 'glucose').nextState
+    reordered = investigate(reordered, 'observation').nextState
+    reordered = administerMedication(reordered, 'glucose-gel').nextState
+
+    const inOrder = evaluateOutcome(ordered, 'hospital', 'Hipoglicemia no cenário', 'Achados registrados')
+    const outOfOrder = evaluateOutcome(reordered, 'hospital', 'Hipoglicemia no cenário', 'Achados registrados')
+    expect(inOrder.score).toBeGreaterThan(outOfOrder.score)
+    expect(inOrder.dimensions.find((item) => item.label === 'Sequência')?.value).toBeGreaterThan(outOfOrder.dimensions.find((item) => item.label === 'Sequência')?.value ?? 0)
+  })
+
+  it('penaliza diagnóstico final incompatível com o roteiro do caso', () => {
+    const state = createCaseState('CASE-001', 66)
+    const compatible = evaluateOutcome(state, 'hospital', 'Hipoglicemia no cenário', 'Registro')
+    const incompatible = evaluateOutcome(state, 'hospital', 'Trauma torácico', 'Registro')
+    expect(compatible.score).toBeGreaterThan(incompatible.score)
+    expect(incompatible.dimensions.find((item) => item.label === 'Diagnóstico')?.value).toBe(0)
+  })
 })

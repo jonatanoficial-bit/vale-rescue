@@ -23,12 +23,16 @@ const copyState = (state: GameState): GameState => ({
   ...state,
   vitals: { ...state.vitals }, wounds: state.wounds.map((wound) => ({ ...wound })),
   knownInvestigations: [...state.knownInvestigations], completedInterventions: [...state.completedInterventions],
-  medicationsGiven: [...state.medicationsGiven], actionLog: [...state.actionLog], defibrillator: { ...state.defibrillator },
+  medicationsGiven: [...state.medicationsGiven], protocolEvents: [...(state.protocolEvents ?? [])], actionLog: [...state.actionLog], defibrillator: { ...state.defibrillator },
 })
 
 const entry = (state: GameState, code: string, outcome: string, tone: LogEntry['tone'] = 'info'): LogEntry => ({ at: state.elapsedSeconds, code, outcome, tone })
 
 const finish = (state: GameState, log: LogEntry): ActionResult => ({ nextState: { ...state, actionLog: [...state.actionLog, log] }, feedback: log })
+
+const trackProtocolEvent = (state: GameState, eventId: string) => {
+  if (!state.protocolEvents.includes(eventId)) state.protocolEvents.push(eventId)
+}
 
 const reject = (state: GameState, code: string, outcome: string, penalty = 0): ActionResult => {
   const next = copyState(state)
@@ -48,6 +52,7 @@ const unsafeAttempt = (state: GameState, code: string, outcome: string, penalty 
 const medicationRiskAttempt = (state: GameState, medicationId: string): ActionResult => {
   const next = copyState(spendTime(state, 8))
   next.penalties += 25
+  trackProtocolEvent(next, `unsafe-medication:${medicationId}`)
   return finish(next, entry(next, 'MEDICAÇÃO_SEM_MODELO_VALIDADO', `Tentativa de ${medicationId} fora do roteiro do caso. O evento foi marcado como risco; o jogo não inventa alteração fixa de sinais vitais sem modelo aprovado por responsável clínico.`, 'danger'))
 }
 
@@ -55,7 +60,7 @@ export const createCaseState = (caseId: CaseId, seed = Math.floor(Date.now() % 1
   const scenario = CASES[caseId]
   const state: GameState = {
     schemaVersion: 1, caseId, seed, elapsedSeconds: 0, speed: 1, vitals: varyVitals(scenario.baseline, seed), monitorConnected: true,
-    knownInvestigations: [], completedInterventions: ['monitor'], medicationsGiven: [], wounds: scenario.wound ? [{ ...scenario.wound }] : [],
+    knownInvestigations: [], completedInterventions: ['monitor'], medicationsGiven: [], protocolEvents: [], wounds: scenario.wound ? [{ ...scenario.wound }] : [],
     defibrillator: { pads: false, charged: false, cleared: false, shocked: false }, ventilation: 'off', compressions: 0,
     infusionActive: false, actionLog: [], penalties: 0, status: 'active',
   }
@@ -70,6 +75,7 @@ export const investigate = (state: GameState, investigationId: string): ActionRe
   if (state.knownInvestigations.includes(investigationId)) return reject(state, 'INVESTIGAR_REPETIDO', 'Esta informação já foi registrada; repetir não acrescenta novo achado neste momento.')
   const next = copyState(spendTime(state, 12))
   next.knownInvestigations.push(investigationId)
+  trackProtocolEvent(next, investigationId)
   return finish(next, entry(next, 'INVESTIGAR', scenario.findings[investigationId] ?? 'Avaliação registrada.', 'success'))
 }
 
@@ -80,6 +86,7 @@ export const intervene = (state: GameState, interventionId: string): ActionResul
   if (interventionId === 'control_bleeding' && !state.knownInvestigations.includes('arm_left')) return unsafeAttempt(state, 'AÇÃO_SEM_AVALIAÇÃO', 'Ação tentada sem a avaliação prévia requerida pelo cenário.', 12)
   const next = copyState(spendTime(state, 15))
   next.completedInterventions.push(interventionId)
+  trackProtocolEvent(next, interventionId)
   if (interventionId === 'monitor') next.monitorConnected = true
   if (interventionId === 'oxygen') {
     next.vitals.spo2 = clamp((next.vitals.spo2 ?? 0) + 4, 0, 100)
@@ -106,6 +113,7 @@ export const administerMedication = (state: GameState, medicationId: string): Ac
   if (medicationId === 'glucose-gel' && !state.knownInvestigations.includes('glucose')) return unsafeAttempt(state, 'MEDICAÇÃO_SEM_AVALIAÇÃO', 'Item tentado sem a avaliação requerida pelo roteiro.', 18)
   const next = copyState(spendTime(state, 10))
   next.medicationsGiven.push(medicationId)
+  trackProtocolEvent(next, `medication:${medicationId}`)
   return finish(next, entry(next, 'MEDICAÇÃO_REGISTRADA', 'Medicamento catalogado foi registrado no roteiro de missão. A resposta individual permanece não modelada até validação clínica, fonte e critérios de cenário.', 'success'))
 }
 
@@ -113,6 +121,7 @@ export const registerCompression = (state: GameState): ActionResult => {
   if (state.caseId !== 'CASE-011') return reject(state, 'COMPRESSÃO_BLOQUEADA', 'Compressão indisponível: o cenário atual não requer esta mecânica fictícia.')
   const next = copyState(state)
   next.compressions += 1
+  trackProtocolEvent(next, 'compress')
   const note = next.compressions % 5 === 0 ? `Compressão ${next.compressions} registrada. Cadência do jogo: sequência em andamento.` : `Compressão ${next.compressions} registrada.`
   return finish(next, entry(next, 'COMPRESSÃO', note, 'success'))
 }
@@ -136,7 +145,7 @@ export const defibrillate = (state: GameState, step: 'pads' | 'charge' | 'clear'
     next.defibrillator.cleared = true; return finish(next, entry(next, 'DESFIBRILADOR', 'Afastamento registrado no cenário.', 'success'))
   }
   if (!next.defibrillator.charged || !next.defibrillator.cleared) return reject(state, 'CHOQUE_BLOQUEADO', 'Choque recusado: conclua eletrodos, carregamento e afastamento.', 30)
-  next.defibrillator.shocked = true; next.defibrillator.charged = false; next.defibrillator.cleared = false; next.vitals.rhythm = 'post_shock'
+  next.defibrillator.shocked = true; next.defibrillator.charged = false; next.defibrillator.cleared = false; next.vitals.rhythm = 'post_shock'; trackProtocolEvent(next, 'shock')
   return finish(next, entry(next, 'DESFIBRILADOR', 'Choque fictício registrado. O cenário exige reavaliação; não há recuperação automática.', 'warning'))
 }
 
@@ -146,7 +155,7 @@ export const setVentilation = (state: GameState, step: 'connect' | 'start' | 'st
   if (step === 'connect') { next.ventilation = 'connected'; return finish(next, entry(next, 'VENTILAÇÃO', 'Conexão simulada registrada.', 'success')) }
   if (step === 'start') {
     if (next.ventilation !== 'connected') return reject(state, 'VENTILAÇÃO_BLOQUEADA', 'Início indisponível: conecte o equipamento primeiro.')
-    next.ventilation = 'running'; return finish(next, entry(next, 'VENTILAÇÃO', 'Ventilação fictícia iniciada; acompanhe o monitor.', 'success'))
+    next.ventilation = 'running'; trackProtocolEvent(next, 'ventilation'); return finish(next, entry(next, 'VENTILAÇÃO', 'Ventilação fictícia iniciada; acompanhe o monitor.', 'success'))
   }
   next.ventilation = 'off'; return finish(next, entry(next, 'VENTILAÇÃO', 'Ventilação interrompida no cenário.', 'warning'))
 }
@@ -154,7 +163,7 @@ export const setVentilation = (state: GameState, step: 'connect' | 'start' | 'st
 export const startInfusion = (state: GameState): ActionResult => {
   if (state.caseId !== 'CASE-004') return reject(state, 'INFUSÃO_BLOQUEADA', 'Infusão indisponível: este recurso não é universal no cenário.')
   if (!state.completedInterventions.includes('iv_access')) return reject(state, 'INFUSÃO_REQUER_ACESSO', 'Infusão indisponível: realize o acesso previsto pelo cenário primeiro.')
-  const next = copyState(state); next.infusionActive = true
+  const next = copyState(state); next.infusionActive = true; trackProtocolEvent(next, 'infusion')
   return finish(next, entry(next, 'INFUSÃO', 'Infusão contextual iniciada no cenário fictício, sem parâmetros reais.', 'success'))
 }
 
@@ -188,21 +197,31 @@ export const advanceTime = (state: GameState, seconds: number): GameState => {
 export const evaluateOutcome = (state: GameState, destination: Destination, hypothesis: string, rationale: string): ScoreReport => {
   const scenario = CASES[state.caseId]
   const fulfilled = scenario.expectedActions.filter((action) => action === 'compress' ? state.compressions >= 8 : action === 'shock' ? state.defibrillator.shocked : action === 'ventilation' ? state.ventilation === 'running' : state.knownInvestigations.includes(action) || state.completedInterventions.includes(action)).length
-  const assessment = Math.round(Math.min(1, state.knownInvestigations.length / Math.min(4, scenario.investigations.length)) * 200)
-  const safety = clamp(200 - state.penalties, 0, 200)
-  const decision = Math.round((fulfilled / scenario.expectedActions.length) * 250)
-  const reassessment = Math.min(150, (state.monitorConnected ? 90 : 0) + (state.knownInvestigations.includes('spo2') ? 30 : 0) + (state.knownInvestigations.includes('bp') ? 30 : 0))
-  const destinationScore = scenario.safeDestinations.includes(destination) ? 150 : 10
-  const efficiency = clamp(50 - Math.floor(state.elapsedSeconds / 45), 10, 50)
-  const score = clamp(assessment + safety + decision + reassessment + destinationScore + efficiency, 0, 1000)
+  const assessment = Math.round(Math.min(1, state.knownInvestigations.length / Math.min(4, scenario.investigations.length)) * 160)
+  const safety = clamp(180 - state.penalties, 0, 180)
+  const decision = Math.round((fulfilled / scenario.expectedActions.length) * 180)
+  const reassessment = Math.min(120, (state.monitorConnected ? 70 : 0) + (state.knownInvestigations.includes('spo2') ? 25 : 0) + (state.knownInvestigations.includes('bp') ? 25 : 0))
+  const destinationScore = scenario.safeDestinations.includes(destination) ? 120 : 10
+  const protocolEvents = state.protocolEvents ?? []
+  const matchedEvents = scenario.protocolSequence.filter((eventId) => protocolEvents.includes(eventId)).length
+  let inOrderEvents = 0
+  for (const eventId of protocolEvents) if (eventId === scenario.protocolSequence[inOrderEvents]) inOrderEvents += 1
+  const outOfOrderEvents = Math.max(0, matchedEvents - inOrderEvents)
+  const sequence = clamp(Math.round((inOrderEvents / scenario.protocolSequence.length) * 90 + (outOfOrderEvents / scenario.protocolSequence.length) * 40), 0, 130)
+  const normalizedHypothesis = hypothesis.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const diagnosisMatched = scenario.diagnosticKeywords.some((keyword) => normalizedHypothesis.includes(keyword.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()))
+  const diagnosis = diagnosisMatched ? 80 : 0
+  const diagnosticPenalty = diagnosisMatched ? 0 : 55
+  const efficiency = clamp(30 - Math.floor(state.elapsedSeconds / 75), 5, 30)
+  const score = clamp(assessment + safety + decision + reassessment + destinationScore + sequence + diagnosis + efficiency - diagnosticPenalty, 0, 1000)
   const notes = [
-    hypothesis.trim() ? `Hipótese registrada: ${hypothesis.trim()}.` : 'Hipótese não registrada.',
+    diagnosisMatched ? `Diagnóstico final do cenário compatível com a chave de missão: ${hypothesis.trim()}.` : `Diagnóstico final sem correspondência no roteiro: ${hypothesis.trim() || 'não informado'}. Penalidade de missão aplicada.`,
     rationale.trim() ? 'Justificativa de destino registrada.' : 'Justificativa de destino ausente.',
+    `Sequência: ${inOrderEvents}/${scenario.protocolSequence.length} etapa(s) na ordem de referência; ${outOfOrderEvents} etapa(s) correta(s) fora da ordem receberam crédito parcial.`,
     scenario.safeDestinations.includes(destination) ? 'Destino compatível com o roteiro simulado.' : 'Destino incompatível com o risco do roteiro; pontuação de documentação reduzida.',
   ]
   return { score, xp: Math.round(score * 0.65), destination, dimensions: [
-    { label: 'Avaliação', value: assessment, max: 200 }, { label: 'Segurança', value: safety, max: 200 },
-    { label: 'Decisão', value: decision, max: 250 }, { label: 'Reavaliação', value: reassessment, max: 150 },
-    { label: 'Destino', value: destinationScore, max: 150 }, { label: 'Eficiência', value: efficiency, max: 50 },
+    { label: 'Avaliação', value: assessment, max: 160 }, { label: 'Segurança', value: safety, max: 180 },
+    { label: 'Decisão', value: decision, max: 180 }, { label: 'Reavaliação', value: reassessment, max: 120 }, { label: 'Destino', value: destinationScore, max: 120 }, { label: 'Sequência', value: sequence, max: 130 }, { label: 'Diagnóstico', value: diagnosis, max: 80 }, { label: 'Eficiência', value: efficiency, max: 30 },
   ], verdict: score >= 760 ? 'Plantão consistente no roteiro ficcional.' : score >= 480 ? 'Atendimento concluído com pontos de revisão.' : 'Atendimento com riscos registrados para estudo.', notes }
 }
