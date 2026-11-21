@@ -1,5 +1,6 @@
 import { CASES } from '../content/cases'
 import { medicationEvidenceFor } from '../content/medicationEvidence'
+import { missionVariantFor } from '../content/missionVariants'
 import type { ActionResult, CaseId, Destination, GameState, LogEntry, ScoreReport } from './types'
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
@@ -106,7 +107,7 @@ const medicationRiskAttempt = (state: GameState, medicationId: string): ActionRe
 export const createCaseState = (caseId: CaseId, seed = Math.floor(Date.now() % 1000000)): GameState => {
   const scenario = CASES[caseId]
   const state: GameState = {
-    schemaVersion: 1, caseId, seed, elapsedSeconds: 0, speed: 1, vitals: varyVitals(scenario.baseline, seed), monitorConnected: true,
+    schemaVersion: 1, caseId, seed, missionVariantId: missionVariantFor(caseId, seed).id, elapsedSeconds: 0, speed: 1, vitals: varyVitals(scenario.baseline, seed), monitorConnected: true,
     knownInvestigations: [], completedInterventions: ['monitor'], medicationsGiven: [], protocolEvents: [], wounds: scenario.wound ? [{ ...scenario.wound }] : [],
     defibrillator: { pads: false, charged: false, cleared: false, shocked: false }, ventilation: 'off', compressions: 0,
     infusionActive: false, actionLog: [], penalties: 0, status: 'active',

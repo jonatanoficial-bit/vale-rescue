@@ -41,6 +41,7 @@ export type GameState = {
   schemaVersion: 1
   caseId: CaseId
   seed: number
+  missionVariantId: string
   elapsedSeconds: number
   speed: 0 | 1 | 2 | 3
   vitals: VitalState

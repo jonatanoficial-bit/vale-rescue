@@ -51,8 +51,16 @@ export function Monitor({ state, presentation = 'embedded', onExpand, onClose }:
   const connected = state.monitorConnected
   useEffect(() => {
     if (!connected) return
-    const timer = window.setInterval(() => setPhase((current) => current + .12), 120)
-    return () => window.clearInterval(timer)
+    let frame = 0
+    let last = window.performance.now()
+    const tick = (now: number) => {
+      const elapsed = Math.min(.08, (now - last) / 1000)
+      last = now
+      setPhase((current) => current + elapsed)
+      frame = window.requestAnimationFrame(tick)
+    }
+    frame = window.requestAnimationFrame(tick)
+    return () => window.cancelAnimationFrame(frame)
   }, [connected])
   const ecg = useMemo(() => createEcg(state.vitals, phase), [state.vitals, phase])
   const pleth = useMemo(() => createPleth(state.vitals, phase), [state.vitals, phase])
