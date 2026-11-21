@@ -1,5 +1,6 @@
 #root { min-height: 100svh; }
 .protocol-card { gap: .15rem; }.protocol-card h3 { margin: .2rem 0 .45rem; color: #e6f7f7; font-size: .98rem; line-height: 1.3; }.protocol-status { width: max-content; margin: 0; padding: .22rem .35rem; color: #f1cb73; border: 1px solid #efc96b52; background: #e9bd5f16; font: .5rem 'DM Mono', monospace; letter-spacing: .08em; }.protocol-source { display: grid; gap: .22rem; margin-top: .55rem; padding: .65rem; color: #60e5d1; border: 1px solid #5de1cd43; background: #57ddc111; font-size: .67rem; line-height: 1.35; }.protocol-source small { color: #9bb6be; font-size: .55rem; }
+.confirmation a { color: #66e6d1; font-size: .61rem; line-height: 1.35; }
 button { transition: transform .18s ease, background .18s ease, border-color .18s ease, color .18s ease; }
 button:hover { transform: translateY(-1px); }
 .primary { background: linear-gradient(110deg, #39d6bd, #1ca3c7); color: #00131c; font-weight: 800; box-shadow: 0 10px 26px #0ab6b852; }

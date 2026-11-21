@@ -77,14 +77,24 @@ describe('motor do Vale Rescue', () => {
     expect(result.nextState.vitals).toEqual(advanceTime(initial, 8).vitals)
   })
 
-  it('registra item contextual sem declarar resposta fisiológica de uma pessoa', () => {
+  it('aplica resposta virtual contextual ao item autorizado', () => {
     let state = createCaseState('CASE-001', 21)
     state = investigate(state, 'glucose').nextState
     const before = { ...state.vitals }
     const result = administerMedication(state, 'glucose-gel')
     expect(result.feedback.code).toBe('MEDICAÇÃO_REGISTRADA')
     expect(result.nextState.medicationsGiven).toContain('glucose-gel')
-    expect(result.nextState.vitals).toEqual(before)
+    expect(result.nextState.vitals.glucoseMgDl).toBeGreaterThan(before.glucoseMgDl ?? 0)
+    expect(result.nextState.vitals.heartRate).toBeLessThan(before.heartRate ?? Infinity)
+  })
+
+  it('aplica risco virtual com fonte ao anticoagulante em sangramento ativo', () => {
+    const initial = createCaseState('CASE-004', 23)
+    const expectedTimeline = advanceTime(initial, 8)
+    const result = administerMedication(initial, 'heparin')
+    expect(result.feedback.code).toBe('RISCO_FARMACOLÓGICO_VIRTUAL')
+    expect(result.nextState.wounds[0].severity).toBeGreaterThan(expectedTimeline.wounds[0].severity)
+    expect(result.nextState.vitals.systolicBP).toBeLessThan(expectedTimeline.vitals.systolicBP ?? Infinity)
   })
 
   it('recompensa a sequência de referência e dá crédito parcial fora de ordem', () => {

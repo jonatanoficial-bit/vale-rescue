@@ -1,4 +1,5 @@
 import { CASES } from '../content/cases'
+import { medicationEvidenceFor } from '../content/medicationEvidence'
 import type { ActionResult, CaseId, Destination, GameState, LogEntry, ScoreReport } from './types'
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
@@ -49,11 +50,57 @@ const unsafeAttempt = (state: GameState, code: string, outcome: string, penalty 
   return finish(next, entry(next, code, `${outcome} O motor registrou risco e alteração fisiológica apenas simulados.`, 'danger'))
 }
 
+const addVirtualRisk = (state: GameState, medicationId: string): string | null => {
+  const hasActiveBleeding = state.caseId === 'CASE-004' && state.wounds.some((wound) => !wound.treated)
+  const lowPressure = (state.vitals.systolicBP ?? 999) < 110
+  const respiratoryCompromise = (state.vitals.respiratoryRate ?? 99) < 13 || (state.vitals.spo2 ?? 100) < 91
+  const lowGlucose = (state.vitals.glucoseMgDl ?? 999) < 80
+  if (medicationId === 'epinephrine' && state.vitals.pulsePresent) {
+    if (state.vitals.heartRate !== null) state.vitals.heartRate = clamp(state.vitals.heartRate + 8, 0, 190)
+    if (state.vitals.systolicBP !== null) state.vitals.systolicBP = clamp(state.vitals.systolicBP + 10, 50, 240)
+    return 'Perfil virtual: estímulo cardiovascular e risco de arritmia registrados.'
+  }
+  if (medicationId === 'propofol' && respiratoryCompromise) {
+    if (state.vitals.spo2 !== null) state.vitals.spo2 = clamp(state.vitals.spo2 - 3, 0, 100)
+    if (state.vitals.respiratoryRate !== null) state.vitals.respiratoryRate = clamp(state.vitals.respiratoryRate - 4, 0, 45)
+    if (state.vitals.systolicBP !== null) state.vitals.systolicBP = clamp(state.vitals.systolicBP - 8, 50, 240)
+    return 'Perfil virtual: depressão cardiorrespiratória registrada.'
+  }
+  if (medicationId === 'morphine' && (respiratoryCompromise || lowPressure)) {
+    if (state.vitals.spo2 !== null) state.vitals.spo2 = clamp(state.vitals.spo2 - 2, 0, 100)
+    if (state.vitals.respiratoryRate !== null) state.vitals.respiratoryRate = clamp(state.vitals.respiratoryRate - 3, 0, 45)
+    if (state.vitals.systolicBP !== null) state.vitals.systolicBP = clamp(state.vitals.systolicBP - 5, 50, 240)
+    return 'Perfil virtual: risco de depressão respiratória e hipotensão registrado.'
+  }
+  if ((medicationId === 'heparin' || medicationId === 'streptokinase' || medicationId === 'ketorolac') && hasActiveBleeding) {
+    state.wounds = state.wounds.map((wound) => ({ ...wound, severity: clamp(wound.severity + .12, 0, 1) }))
+    if (state.vitals.systolicBP !== null) state.vitals.systolicBP = clamp(state.vitals.systolicBP - 7, 50, 240)
+    if (state.vitals.heartRate !== null) state.vitals.heartRate = clamp(state.vitals.heartRate + 5, 0, 190)
+    return 'Perfil virtual: janela hemorrágica agravada.'
+  }
+  if (medicationId === 'nitroglycerin' && lowPressure) {
+    if (state.vitals.systolicBP !== null) state.vitals.systolicBP = clamp(state.vitals.systolicBP - 10, 50, 240)
+    if (state.vitals.heartRate !== null) state.vitals.heartRate = clamp(state.vitals.heartRate + 4, 0, 190)
+    return 'Perfil virtual: risco hemodinâmico por hipotensão registrado.'
+  }
+  if (medicationId === 'insulin' && lowGlucose) {
+    if (state.vitals.glucoseMgDl !== null) state.vitals.glucoseMgDl = clamp(state.vitals.glucoseMgDl - 18, 25, 350)
+    if (state.vitals.heartRate !== null) state.vitals.heartRate = clamp(state.vitals.heartRate + 5, 0, 190)
+    return 'Perfil virtual: incompatibilidade glicêmica registrada.'
+  }
+  return null
+}
+
 const medicationRiskAttempt = (state: GameState, medicationId: string): ActionResult => {
   const next = copyState(spendTime(state, 8))
   next.penalties += 25
   trackProtocolEvent(next, `unsafe-medication:${medicationId}`)
-  return finish(next, entry(next, 'MEDICAÇÃO_SEM_MODELO_VALIDADO', `Tentativa de ${medicationId} fora do roteiro do caso. O evento foi marcado como risco; o jogo não inventa alteração fixa de sinais vitais sem modelo aprovado por responsável clínico.`, 'danger'))
+  const evidence = medicationEvidenceFor(medicationId)
+  const virtualRisk = evidence?.status === 'modelo virtual com fonte' ? addVirtualRisk(next, medicationId) : null
+  const outcome = virtualRisk
+    ? `Tentativa fora do roteiro. ${virtualRisk} Fonte: ${evidence?.sourceLabel}.`
+    : `Tentativa de ${medicationId} fora do roteiro. O evento foi marcado como risco sem resposta fisiológica inventada, pois ainda não há modelo virtual com fonte para este item.`
+  return finish(next, entry(next, virtualRisk ? 'RISCO_FARMACOLÓGICO_VIRTUAL' : 'MEDICAÇÃO_SEM_MODELO_VALIDADO', outcome, 'danger'))
 }
 
 export const createCaseState = (caseId: CaseId, seed = Math.floor(Date.now() % 1000000)): GameState => {
@@ -114,7 +161,17 @@ export const administerMedication = (state: GameState, medicationId: string): Ac
   const next = copyState(spendTime(state, 10))
   next.medicationsGiven.push(medicationId)
   trackProtocolEvent(next, `medication:${medicationId}`)
-  return finish(next, entry(next, 'MEDICAÇÃO_REGISTRADA', 'Medicamento catalogado foi registrado no roteiro de missão. A resposta individual permanece não modelada até validação clínica, fonte e critérios de cenário.', 'success'))
+  if (medicationId === 'glucose-gel') {
+    if (next.vitals.glucoseMgDl !== null) next.vitals.glucoseMgDl = clamp(next.vitals.glucoseMgDl + 18, 35, 110)
+    if (next.vitals.heartRate !== null) next.vitals.heartRate = clamp(next.vitals.heartRate - 4, 45, 180)
+  }
+  if (medicationId === 'bronchodilator') {
+    if (next.vitals.spo2 !== null) next.vitals.spo2 = clamp(next.vitals.spo2 + 2, 0, 100)
+    if (next.vitals.respiratoryRate !== null) next.vitals.respiratoryRate = clamp(next.vitals.respiratoryRate - 2, 0, 45)
+    if (next.vitals.heartRate !== null) next.vitals.heartRate = clamp(next.vitals.heartRate + 2, 0, 190)
+  }
+  const evidence = medicationEvidenceFor(medicationId)
+  return finish(next, entry(next, 'MEDICAÇÃO_REGISTRADA', `Resposta virtual contextual aplicada ao roteiro. ${evidence ? `Fonte do modelo: ${evidence.sourceLabel}.` : 'Sem previsão individual ou dose.'}`, 'success'))
 }
 
 export const registerCompression = (state: GameState): ActionResult => {
