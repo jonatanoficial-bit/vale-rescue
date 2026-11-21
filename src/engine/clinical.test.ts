@@ -68,11 +68,20 @@ describe('motor do Vale Rescue', () => {
     expect(hospital.score).toBeLessThanOrEqual(1000)
   })
 
-  it('registra consequência simulada ao tentar item incompatível com o cenário', () => {
+  it('registra consequência simulada específica ao tentar propofol fora do cenário', () => {
     const initial = createCaseState('CASE-004', 19)
-    const result = administerMedication(initial, 'bronchodilator')
-    expect(result.feedback.code).toBe('MEDICAÇÃO_INCOMPATÍVEL')
+    const result = administerMedication(initial, 'propofol')
+    expect(result.feedback.code).toBe('RISCO_PROPOFOL')
     expect(result.nextState.penalties).toBeGreaterThan(initial.penalties)
     expect(result.nextState.elapsedSeconds).toBeGreaterThan(initial.elapsedSeconds)
+    expect(result.nextState.vitals.spo2).toBeLessThan(initial.vitals.spo2 ?? 100)
+  })
+
+  it('registra padrão cardiovascular fictício ao tentar adrenalina fora do roteiro', () => {
+    const initial = createCaseState('CASE-004', 21)
+    const result = administerMedication(initial, 'epinephrine')
+    expect(result.feedback.code).toBe('RISCO_EPINEFRINA')
+    expect(result.nextState.vitals.heartRate).toBeGreaterThan(initial.vitals.heartRate ?? 0)
+    expect(result.nextState.vitals.systolicBP).toBeGreaterThan(initial.vitals.systolicBP ?? 0)
   })
 })

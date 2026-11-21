@@ -22,12 +22,13 @@ export const INTERVENTIONS = [
 ] as const
 
 export const MEDICATIONS = [
-  { id: 'glucose-gel', label: 'Glicose — item de cenário', category: 'Metabólico' },
-  { id: 'bronchodilator', label: 'Broncodilatador — item de cenário', category: 'Respiratório' },
-  { id: 'analgesic', label: 'Analgésico — item de cenário', category: 'Conforto' },
-  { id: 'hydration', label: 'Solução de hidratação — item de cenário', category: 'Suporte' },
-  { id: 'reversal', label: 'Agente de reversão — item de cenário', category: 'Especial' },
-  { id: 'emergency-adjunct', label: 'Adjuvante de emergência — item de cenário', category: 'Especial' },
+  { id: 'glucose-gel', label: 'Glicose oral', category: 'Metabólico', evidence: 'Nome real · modelo de cenário' },
+  { id: 'bronchodilator', label: 'Salbutamol', category: 'Respiratório', evidence: 'Nome real · modelo de cenário' },
+  { id: 'analgesic', label: 'Dipirona', category: 'Analgésico', evidence: 'Nome real · modelo de cenário' },
+  { id: 'hydration', label: 'Cloreto de sódio 0,9%', category: 'Solução intravenosa', evidence: 'Nome real · modelo de cenário' },
+  { id: 'reversal', label: 'Naloxona', category: 'Antagonista', evidence: 'Nome real · modelo de cenário' },
+  { id: 'epinephrine', label: 'Adrenalina (epinefrina)', category: 'Vasoativo de protocolo', evidence: 'Nome real · risco monitorado' },
+  { id: 'propofol', label: 'Propofol', category: 'Anestésico/sedativo controlado', evidence: 'Nome real · risco monitorado' },
 ] as const
 
 export const CASES: Record<CaseId, CaseDefinition> = {
@@ -76,7 +77,7 @@ export const CASES: Record<CaseId, CaseDefinition> = {
     baseline: { heartRate: null, systolicBP: null, diastolicBP: null, spo2: 72, respiratoryRate: 0, temperatureC: 35.8, glucoseMgDl: null, rhythm: 'vf', pulsePresent: false, consciousness: 'unresponsive' },
     findings: { observation: 'Sem resposta observável. Cenário de treino pede suporte e reavaliação.', consciousness: 'Não responsivo. Sem fala atribuída.', bp: 'Sem leitura válida nesta condição simulada.', temperature: 'Leitura reduzida apenas como dado de cenário.', spo2: 'Leitura baixa e dependente do sensor no exercício.', glucose: 'Aferição não é a prioridade do roteiro.', chest: 'Movimento respiratório ausente no cenário fictício.', arm_left: 'Sem ferimento relevante.' },
     investigations: ['observation', 'consciousness', 'spo2', 'chest'],
-    interventions: ['monitor', 'airway', 'call_support'], medications: ['emergency-adjunct'], safeDestinations: ['hospital', 'advanced_team'], expectedActions: ['monitor', 'compress', 'shock', 'ventilation'],
+    interventions: ['monitor', 'airway', 'call_support'], medications: [], safeDestinations: ['hospital', 'advanced_team'], expectedActions: ['monitor', 'compress', 'shock', 'ventilation'],
     summary: 'Cenário totalmente fictício: a interface registra compressões, etapas do desfibrilador e ventilação, sem ensinar protocolo real.'
   },
   'CASE-014': {
