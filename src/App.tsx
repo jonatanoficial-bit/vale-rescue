@@ -51,6 +51,7 @@ function App() {
   useEffect(() => { if (careerLoaded) void saveCareerProfile(career).catch(() => undefined) }, [career, careerLoaded])
 
   const scenario = game ? CASES[game.caseId] : null
+  const enterFullscreen = () => { if (typeof document !== 'undefined' && !document.fullscreenElement) void document.documentElement.requestFullscreen?.().catch(() => undefined) }
   const runResult = (result: ActionResult) => { setGame(result.nextState); setFeedback(result.feedback); tone(result.feedback.tone, volume) }
   const start = (caseId: CaseId, seed?: number) => { const next = createCaseState(caseId, seed); setGame(next); setFeedback(next.actionLog.at(-1) ?? null); setReport(null); setCareerReward(null); setPanel('record'); setQuickDestination('hospital'); setMonitorExpanded(false); setDispatchVisible(true); setScreen('game') }
   const startAssigned = () => { const available = CASE_LIST.filter((item) => (item.unlockXp ?? 0) <= career.xp && (!item.requiredCertification || career.certifications.includes(item.requiredCertification))); start(selectCareerCase(available, career).id) }
@@ -72,7 +73,7 @@ function App() {
     <header className="game-header">
       <button className="brand-button" onClick={() => setScreen('home')} aria-label="Encerrar visualização e voltar ao início"><span>VALE</span> RESCUE <small>PLANTÃO / {mode.toUpperCase()}</small></button>
       <div className="case-chip"><b>{scenario.priority}</b><span>{scenario.id} · {variant.title}</span></div>
-      <div className="clock-control"><button className="career-chip" onClick={() => setScreen('career')} aria-label="Abrir carreira"><span>{rankFor(career.xp).name}</span><b>◈ {career.credits}</b></button><span>⏱ {asTime(game.elapsedSeconds)}</span>{([0, 1, 2, 3] as const).map((speed) => <button key={speed} className={game.speed === speed ? 'active' : ''} onClick={() => setGame({ ...game, speed })}>{speed === 0 ? 'Ⅱ' : `${speed}×`}</button>)}</div>
+      <div className="clock-control"><button className="career-chip" onClick={() => setScreen('career')} aria-label="Abrir carreira"><span>{rankFor(career.xp).name}</span><b>◈ {career.credits}</b></button><span>⏱ {asTime(game.elapsedSeconds)}</span>{([0, 1, 2, 3] as const).map((speed) => <button key={speed} className={game.speed === speed ? 'active' : ''} onClick={() => setGame({ ...game, speed })}>{speed === 0 ? 'Ⅱ' : `${speed}×`}</button>)}<button className="fullscreen-toggle" onClick={enterFullscreen} aria-label="Ativar tela cheia">⛶</button></div>
     </header>
     <div className="game-grid">
       <PatientScene state={game}>
@@ -102,7 +103,7 @@ function App() {
     </div>
     <footer className="medical-note">REFERÊNCIA-BASE: AHA/ILCOR 2025 · SIMULAÇÃO FICCIONAL · NÃO É ORIENTAÇÃO MÉDICA · regras específicas dependem de validação profissional.</footer>
     {monitorExpanded && <div className="monitor-overlay" role="dialog" aria-modal="true" aria-label="Monitor ampliado"><Monitor state={game} presentation="fullscreen" onClose={() => setMonitorExpanded(false)} /></div>}
-    {dispatchVisible && <DispatchOverlay scenario={scenario} variant={variant} onEnter={() => setDispatchVisible(false)} />}
+    {dispatchVisible && <DispatchOverlay scenario={scenario} variant={variant} onEnter={() => { enterFullscreen(); setDispatchVisible(false) }} />}
   </main>
 }
 
