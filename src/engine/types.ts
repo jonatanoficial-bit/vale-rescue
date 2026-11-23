@@ -1,4 +1,7 @@
-export type CaseId = 'CASE-001' | 'CASE-003' | 'CASE-004' | 'CASE-011' | 'CASE-014' | 'CASE-018' | 'CASE-019' | 'CASE-021'
+export type CaseId =
+  | 'CASE-001' | 'CASE-003' | 'CASE-004' | 'CASE-011' | 'CASE-014' | 'CASE-018' | 'CASE-019' | 'CASE-021'
+  | 'CASE-022' | 'CASE-023' | 'CASE-024' | 'CASE-025' | 'CASE-026' | 'CASE-027' | 'CASE-028' | 'CASE-029' | 'CASE-030' | 'CASE-031'
+  | 'CASE-032' | 'CASE-033' | 'CASE-034' | 'CASE-035' | 'CASE-036' | 'CASE-037' | 'CASE-038' | 'CASE-039' | 'CASE-040' | 'CASE-041'
 
 export type Destination = 'discharge' | 'hospital' | 'advanced_team'
 
@@ -79,6 +82,11 @@ export type CaseDefinition = {
   diagnosticKeywords: string[]
   safeDestinations: Destination[]
   expectedActions: string[]
+  progression?: {
+    stabilizers: string[]
+    untreated: Partial<Record<'heartRate' | 'systolicBP' | 'diastolicBP' | 'spo2' | 'respiratoryRate' | 'temperatureC' | 'glucoseMgDl', number>>
+    stabilized?: Partial<Record<'heartRate' | 'systolicBP' | 'diastolicBP' | 'spo2' | 'respiratoryRate' | 'temperatureC' | 'glucoseMgDl', number>>
+  }
   unlockXp?: number
   requiredCertification?: 'stroke'
   wound?: Wound

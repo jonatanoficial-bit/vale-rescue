@@ -54,7 +54,7 @@ export const PROTOCOLS: ProtocolCard[] = [
     supportingSourceUrl: 'https://www.ilcor.org/uploads/BLS-2025-COSTR-Full-Chapter.pdf',
     status: 'referência vinculada',
     clinicalApproval: 'AHA/ILCOR não substitui protocolo institucional para cada doença ou medicamento. O jogo não habilita administração clínica real.',
-    cases: ['CASE-001', 'CASE-003', 'CASE-004', 'CASE-014', 'CASE-018', 'CASE-019'],
+    cases: ['CASE-001', 'CASE-003', 'CASE-004', 'CASE-014', 'CASE-018', 'CASE-019', 'CASE-022', 'CASE-025', 'CASE-026', 'CASE-029', 'CASE-030', 'CASE-031', 'CASE-032', 'CASE-033', 'CASE-034', 'CASE-035', 'CASE-038', 'CASE-039', 'CASE-041'],
     gameBoundary: 'As consequências exibidas são estados de missão, não prognóstico de uma pessoa ou prescrição.',
   },
   {
@@ -69,8 +69,23 @@ export const PROTOCOLS: ProtocolCard[] = [
     supportingSourceUrl: 'https://www.ilcor.org/uploads/BLS-2025-COSTR-Full-Chapter.pdf',
     status: 'revisão clínica pendente',
     clinicalApproval: 'Sem motor farmacológico para AVC até que um responsável clínico aprove uma matriz institucional de inclusões, exclusões e monitorização.',
-    cases: ['CASE-021'],
+    cases: ['CASE-021', 'CASE-037'],
     gameBoundary: 'O cenário não diagnostica AVC, não diferencia subtipos e não transforma medicamentos em decisão automática.',
+  },
+  {
+    id: 'special-circumstances',
+    title: 'Situações especiais e insuficiência respiratória — fluxo de cenário',
+    scope: 'Sinais respiratórios, exposição ambiental, submersão e suspeita de toxicidade no motor ficcional.',
+    jurisdiction: 'AHA 2025 · referência internacional; exige adaptação e aprovação do serviço local.',
+    sourceLabel: 'American Heart Association — Special Circumstances of Resuscitation (2025)',
+    sourceUrl: 'https://cpr.heart.org/en/resuscitation-science/cpr-and-ecc-guidelines/adult-and-pediatric-special-circumstances-of-resuscitation/',
+    sourceVersion: 'AHA 2025',
+    supportingSourceLabel: 'American Heart Association — Adult Basic Life Support (2025)',
+    supportingSourceUrl: 'https://cpr.heart.org/en/resuscitation-science/cpr-and-ecc-guidelines/adult-basic-life-support',
+    status: 'referência vinculada',
+    clinicalApproval: 'Os estados fisiológicos são tendências virtuais de jogo. Regras de medicação e conduta real dependem de protocolo local e direção médica.',
+    cases: ['CASE-023', 'CASE-024', 'CASE-027', 'CASE-028', 'CASE-036', 'CASE-040'],
+    gameBoundary: 'O cenário não identifica toxinas, não confirma diagnóstico e não converte uma ação do jogador em prognóstico de paciente real.',
   },
 ]
 

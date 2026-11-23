@@ -21,6 +21,23 @@ describe('motor do Vale Rescue', () => {
     expect(oxygen.vitals.heartRate).toBeLessThan(later.vitals.heartRate ?? Infinity)
   })
 
+  it('aplica a tendência de cenário à nova ocorrência respiratória', () => {
+    const initial = createCaseState('CASE-023', 67)
+    const later = advanceTime(initial, 60)
+    expect(later.vitals.spo2).toBeLessThan(initial.vitals.spo2 ?? 100)
+    const supported = intervene(later, 'oxygen').nextState
+    expect(supported.vitals.spo2).toBeGreaterThan(later.vitals.spo2 ?? 0)
+  })
+
+  it('modela resposta virtual autorizada no roteiro de respiração lenta', () => {
+    const initial = createCaseState('CASE-024', 68)
+    const before = { ...initial.vitals }
+    const result = administerMedication(initial, 'reversal')
+    expect(result.nextState.medicationsGiven).toContain('reversal')
+    expect(result.nextState.vitals.spo2).toBeGreaterThan(before.spo2 ?? 0)
+    expect(result.nextState.vitals.respiratoryRate).toBeGreaterThan(before.respiratoryRate ?? 0)
+  })
+
   it('exige inspeção e trata visualmente a ferida simulada', () => {
     const initial = createCaseState('CASE-004', 56)
     expect(intervene(initial, 'control_bleeding').feedback.code).toBe('AÇÃO_SEM_AVALIAÇÃO')

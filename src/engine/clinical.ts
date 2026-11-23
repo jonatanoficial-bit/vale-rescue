@@ -52,7 +52,7 @@ const unsafeAttempt = (state: GameState, code: string, outcome: string, penalty 
 }
 
 const addVirtualRisk = (state: GameState, medicationId: string): string | null => {
-  const hasActiveBleeding = state.caseId === 'CASE-004' && state.wounds.some((wound) => !wound.treated)
+  const hasActiveBleeding = state.wounds.some((wound) => !wound.treated)
   const lowPressure = (state.vitals.systolicBP ?? 999) < 110
   const respiratoryCompromise = (state.vitals.respiratoryRate ?? 99) < 13 || (state.vitals.spo2 ?? 100) < 91
   const lowGlucose = (state.vitals.glucoseMgDl ?? 999) < 80
@@ -141,7 +141,7 @@ export const intervene = (state: GameState, interventionId: string): ActionResul
     next.vitals.respiratoryRate = Math.max(12, (next.vitals.respiratoryRate ?? 12) - 3)
     next.vitals.heartRate = Math.max(60, (next.vitals.heartRate ?? 60) - 6)
   }
-  if (interventionId === 'airway' && state.caseId === 'CASE-003') {
+  if (interventionId === 'airway') {
     next.vitals.spo2 = clamp((next.vitals.spo2 ?? 0) + 2, 0, 100)
     next.vitals.respiratoryRate = Math.max(12, (next.vitals.respiratoryRate ?? 12) - 2)
     next.vitals.heartRate = Math.max(60, (next.vitals.heartRate ?? 60) - 3)
@@ -170,6 +170,11 @@ export const administerMedication = (state: GameState, medicationId: string): Ac
     if (next.vitals.spo2 !== null) next.vitals.spo2 = clamp(next.vitals.spo2 + 2, 0, 100)
     if (next.vitals.respiratoryRate !== null) next.vitals.respiratoryRate = clamp(next.vitals.respiratoryRate - 2, 0, 45)
     if (next.vitals.heartRate !== null) next.vitals.heartRate = clamp(next.vitals.heartRate + 2, 0, 190)
+  }
+  if (medicationId === 'reversal') {
+    if (next.vitals.spo2 !== null) next.vitals.spo2 = clamp(next.vitals.spo2 + 4, 0, 100)
+    if (next.vitals.respiratoryRate !== null) next.vitals.respiratoryRate = clamp(next.vitals.respiratoryRate + 4, 0, 45)
+    if (next.vitals.consciousness === 'pain') next.vitals.consciousness = 'voice'
   }
   const evidence = medicationEvidenceFor(medicationId)
   return finish(next, entry(next, 'MEDICAÇÃO_REGISTRADA', `Resposta virtual contextual aplicada ao roteiro. ${evidence ? `Fonte do modelo: ${evidence.sourceLabel}.` : 'Sem previsão individual ou dose.'}`, 'success'))
@@ -248,6 +253,19 @@ export const advanceTime = (state: GameState, seconds: number): GameState => {
   if (next.caseId === 'CASE-011' && next.defibrillator.shocked && next.compressions >= 8 && next.ventilation === 'running') {
     next.vitals.spo2 = clamp((next.vitals.spo2 ?? 70) + seconds * 0.08, 60, 86)
     next.vitals.respiratoryRate = 8
+  }
+  const progression = CASES[next.caseId].progression
+  if (progression) {
+    const stabilized = progression.stabilizers.some((token) => token.startsWith('medication:') ? next.medicationsGiven.includes(token.slice('medication:'.length)) : next.completedInterventions.includes(token))
+    const changes = stabilized && progression.stabilized ? progression.stabilized : progression.untreated
+    for (const [vital, perSecond] of Object.entries(changes)) {
+      const key = vital as keyof typeof next.vitals
+      const current = next.vitals[key]
+      if (typeof current !== 'number' || typeof perSecond !== 'number') continue
+      const bounds: Record<string, [number, number]> = { heartRate: [25, 210], systolicBP: [50, 240], diastolicBP: [30, 150], spo2: [45, 100], respiratoryRate: [0, 45], temperatureC: [28, 43], glucoseMgDl: [25, 420] }
+      const [min, max] = bounds[vital] ?? [-999, 999]
+      ;(next.vitals[key] as number) = clamp(current + perSecond * seconds, min, max)
+    }
   }
   return next
 }

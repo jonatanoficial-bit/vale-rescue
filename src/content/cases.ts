@@ -1,4 +1,5 @@
 import type { CaseDefinition, CaseId } from '../engine/types'
+import { EXTENDED_CASES } from './extendedCases'
 
 export const INVESTIGATIONS = [
   { id: 'observation', label: 'Observação inicial', icon: '◉' },
@@ -136,6 +137,7 @@ export const CASES: Record<CaseId, CaseDefinition> = {
     investigations: ['observation', 'consciousness', 'bp', 'spo2', 'glucose', 'arm_left'], interventions: ['monitor', 'position', 'iv_access', 'call_support'], medications: [], protocolSequence: ['observation', 'consciousness', 'glucose', 'call_support'], diagnosticKeywords: ['avc', 'evento neurológico', 'sinais neurológicos'], safeDestinations: ['hospital', 'advanced_team'], expectedActions: ['observation', 'consciousness', 'call_support'],
     summary: 'Módulo de reconhecimento fictício desbloqueado após a certificação de estudo. A missão privilegia registro e destino, não medicação ou diagnóstico.'
   },
+  ...EXTENDED_CASES,
 }
 
 export const CASE_LIST = Object.values(CASES)
