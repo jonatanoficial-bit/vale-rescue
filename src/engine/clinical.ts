@@ -273,7 +273,7 @@ export const advanceTime = (state: GameState, seconds: number): GameState => {
   return next
 }
 
-export const evaluateOutcome = (state: GameState, destination: Destination, hypothesis: string, rationale: string): ScoreReport => {
+export const evaluateOutcome = (state: GameState, destination: Destination, hypothesis: string, rationale: string, transportSeconds = destination === 'discharge' ? 0 : 160): ScoreReport => {
   const scenario = CASES[state.caseId]
   const fulfilled = scenario.expectedActions.filter((action) => action === 'compress' ? state.compressions >= 8 : action === 'shock' ? state.defibrillator.shocked : action === 'ventilation' ? state.ventilation === 'running' : state.knownInvestigations.includes(action) || state.completedInterventions.includes(action)).length
   const assessment = Math.round(Math.min(1, state.knownInvestigations.length / Math.min(4, scenario.investigations.length)) * 160)
@@ -292,15 +292,17 @@ export const evaluateOutcome = (state: GameState, destination: Destination, hypo
   const diagnosis = diagnosisMatched ? 80 : 0
   const diagnosticPenalty = diagnosisMatched ? 0 : 55
   const efficiency = clamp(30 - Math.floor(state.elapsedSeconds / 75), 5, 30)
-  const score = clamp(assessment + safety + decision + reassessment + destinationScore + sequence + diagnosis + efficiency - diagnosticPenalty, 0, 1000)
+  const fleet = destination === 'discharge' ? 0 : clamp(Math.round((160 - transportSeconds) / 4), 0, 40)
+  const score = clamp(assessment + safety + decision + reassessment + destinationScore + sequence + diagnosis + efficiency + fleet - diagnosticPenalty, 0, 1000)
   const notes = [
     diagnosisMatched ? `Diagnóstico final do cenário compatível com a chave de missão: ${hypothesis.trim()}.` : `Diagnóstico final sem correspondência no roteiro: ${hypothesis.trim() || 'não informado'}. Penalidade de missão aplicada.`,
     rationale.trim() ? 'Justificativa de destino registrada.' : 'Justificativa de destino ausente.',
     `Sequência: ${inOrderEvents}/${scenario.protocolSequence.length} etapa(s) na ordem de referência; ${outOfOrderEvents} etapa(s) correta(s) fora da ordem receberam crédito parcial.`,
     scenario.safeDestinations.includes(destination) ? 'Destino compatível com o roteiro simulado.' : 'Destino incompatível com o risco do roteiro; pontuação de documentação reduzida.',
+    destination === 'discharge' ? 'Sem deslocamento de frota registrado.' : `Deslocamento ficcional registrado: ${transportSeconds} s.`,
   ]
   return { score, xp: Math.round(score * 0.65), destination, dimensions: [
     { label: 'Avaliação', value: assessment, max: 160 }, { label: 'Segurança', value: safety, max: 180 },
-    { label: 'Decisão', value: decision, max: 180 }, { label: 'Reavaliação', value: reassessment, max: 120 }, { label: 'Destino', value: destinationScore, max: 120 }, { label: 'Sequência', value: sequence, max: 130 }, { label: 'Diagnóstico', value: diagnosis, max: 80 }, { label: 'Eficiência', value: efficiency, max: 30 },
-  ], verdict: score >= 760 ? 'Plantão consistente no roteiro ficcional.' : score >= 480 ? 'Atendimento concluído com pontos de revisão.' : 'Atendimento com riscos registrados para estudo.', notes }
+    { label: 'Decisão', value: decision, max: 180 }, { label: 'Reavaliação', value: reassessment, max: 120 }, { label: 'Destino', value: destinationScore, max: 120 }, { label: 'Sequência', value: sequence, max: 130 }, { label: 'Diagnóstico', value: diagnosis, max: 80 }, { label: 'Eficiência', value: efficiency, max: 30 }, { label: 'Frota', value: fleet, max: 40 },
+  ], verdict: score >= 760 ? 'Plantão consistente no roteiro ficcional.' : score >= 480 ? 'Atendimento concluído com pontos de revisão.' : 'Atendimento com riscos registrados para estudo.', notes, transportSeconds }
 }

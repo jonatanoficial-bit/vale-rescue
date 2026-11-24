@@ -139,6 +139,15 @@ describe('motor do Vale Rescue', () => {
     expect(incompatible.dimensions.find((item) => item.label === 'Diagnóstico')?.value).toBe(0)
   })
 
+  it('registra o ganho de frota apenas para deslocamento ficcional melhorado', () => {
+    const state = createCaseState('CASE-001', 14)
+    const standard = evaluateOutcome(state, 'hospital', 'Hipoglicemia no cenário', 'Registro', 160)
+    const improved = evaluateOutcome(state, 'hospital', 'Hipoglicemia no cenário', 'Registro', 105)
+    expect(improved.transportSeconds).toBe(105)
+    expect(improved.score).toBeGreaterThan(standard.score)
+    expect(improved.dimensions.find((item) => item.label === 'Frota')?.value).toBeGreaterThan(0)
+  })
+
   it('recusa itens fora da carga da unidade sem inventar efeito no paciente virtual', () => {
     const initial = createCaseState('CASE-024', 68, 'samu_usb')
     const result = administerMedication(initial, 'reversal')

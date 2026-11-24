@@ -1,4 +1,5 @@
 import type { CaseDefinition, ScoreReport, ServiceProfileId } from './types'
+import { serviceProfileFor } from '../content/serviceProfiles'
 
 export type UpgradeId = 'signal_link' | 'scene_console' | 'fleet_clearance' | 'shift_pass' | 'case_library' | 'night_drive'
 
@@ -32,6 +33,7 @@ export type CareerUpgrade = {
   icon: string
   scoreBonus: number
   xpMultiplier: number
+  travelSecondsSaved: number
 }
 
 export const CAREER_RANKS = [
@@ -46,12 +48,12 @@ export const CAREER_RANKS = [
 ] as const
 
 export const CAREER_UPGRADES: CareerUpgrade[] = [
-  { id: 'signal_link', name: 'Link de Sinal', description: '+12% de XP em missões concluídas.', cost: 180, icon: '⌁', scoreBonus: 0, xpMultiplier: 1.12 },
-  { id: 'scene_console', name: 'Console de Cena', description: '+30 pontos de carreira no relatório.', cost: 420, icon: '▦', scoreBonus: 30, xpMultiplier: 1 },
-  { id: 'fleet_clearance', name: 'Credencial de Frota', description: '+55 pontos de carreira no relatório.', cost: 760, icon: '◆', scoreBonus: 55, xpMultiplier: 1 },
-  { id: 'shift_pass', name: 'Passe de Plantão', description: '+25% de créditos ganhos em missões.', cost: 980, icon: '◈', scoreBonus: 0, xpMultiplier: 1 },
-  { id: 'case_library', name: 'Arquivo de Casos', description: '+35 pontos de carreira por relatório documentado.', cost: 1180, icon: '▤', scoreBonus: 35, xpMultiplier: 1 },
-  { id: 'night_drive', name: 'Direção Noturna', description: '+18% de XP por sequência de plantão.', cost: 1500, icon: '☾', scoreBonus: 0, xpMultiplier: 1.18 },
+  { id: 'signal_link', name: 'Link de Sinal', description: '+12% de XP em missões concluídas.', cost: 180, icon: '⌁', scoreBonus: 0, xpMultiplier: 1.12, travelSecondsSaved: 0 },
+  { id: 'scene_console', name: 'Console de Cena', description: '+30 pontos de carreira no relatório.', cost: 420, icon: '▦', scoreBonus: 30, xpMultiplier: 1, travelSecondsSaved: 0 },
+  { id: 'fleet_clearance', name: 'Credencial de Frota', description: 'Reduz 35 s do deslocamento ficcional ao hospital.', cost: 760, icon: '◆', scoreBonus: 0, xpMultiplier: 1, travelSecondsSaved: 35 },
+  { id: 'shift_pass', name: 'Passe de Plantão', description: '+25% de créditos ganhos em missões.', cost: 980, icon: '◈', scoreBonus: 0, xpMultiplier: 1, travelSecondsSaved: 0 },
+  { id: 'case_library', name: 'Arquivo de Casos', description: '+35 pontos de carreira por relatório documentado.', cost: 1180, icon: '▤', scoreBonus: 35, xpMultiplier: 1, travelSecondsSaved: 0 },
+  { id: 'night_drive', name: 'Direção Noturna', description: '+18% de XP e reduz 20 s do deslocamento ficcional.', cost: 1500, icon: '☾', scoreBonus: 0, xpMultiplier: 1.18, travelSecondsSaved: 20 },
 ]
 
 export const createCareerProfile = (): CareerProfile => ({ schemaVersion: 1, xp: 0, credits: 120, missionsCompleted: 0, missionStreak: 0, bestStreak: 0, recentCaseIds: [], upgrades: [], certifications: [], serviceProfileId: 'samu_usb' })
@@ -93,6 +95,18 @@ export const selectCareerCase = (available: CaseDefinition[], profile: CareerPro
   const selected = pool[Math.floor(random() * pool.length)] ?? available[0]
   if (!selected) throw new Error('A carreira precisa de ao menos uma ocorrência disponível.')
   return selected
+}
+
+export const dispatchableCases = (available: CaseDefinition[], profile: CareerProfile): CaseDefinition[] => {
+  const service = serviceProfileFor(profile.serviceProfileId)
+  const compatible = available.filter((scenario) => scenario.interventions.every((item) => service.interventions.includes(item)) && scenario.medications.every((item) => service.medications.includes(item)))
+  return compatible.length ? compatible : available
+}
+
+export const fictionalTransitSeconds = (destination: ScoreReport['destination'], profile: CareerProfile): number => {
+  if (destination === 'discharge') return 0
+  const saved = owned(profile).reduce((total, upgrade) => total + upgrade.travelSecondsSaved, 0)
+  return Math.max(65, 160 - saved)
 }
 
 export const awardCareer = (profile: CareerProfile, report: ScoreReport, caseId: string, contextBonus = 0): CareerReward => {

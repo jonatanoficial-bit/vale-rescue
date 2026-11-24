@@ -102,6 +102,7 @@ export type ScoreReport = {
   score: number
   xp: number
   destination: Destination
+  transportSeconds: number
   dimensions: Array<{ label: string; value: number; max: number }>
   verdict: string
   notes: string[]
