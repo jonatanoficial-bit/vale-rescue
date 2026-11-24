@@ -41,6 +41,8 @@ test('abre a carreira e os protocolos de missão com bloqueio por XP', async ({ 
   await acknowledgeSafety(page)
   await page.getByRole('button', { name: /carreira e garagem/i }).click()
   await expect(page.getByRole('heading', { name: 'Cadete' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /marcos da central/i })).toBeVisible()
+  await expect(page.getByText(/rota inaugurada/i)).toBeVisible()
   await expect(page.getByRole('heading', { name: /equipe e carga da próxima missão/i })).toBeVisible()
   await page.getByRole('button', { name: /abrir protocolos/i }).click()
   await expect(page.getByRole('heading', { name: /trilhas de missão/i })).toBeVisible()

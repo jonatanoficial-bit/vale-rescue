@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCareerModifiers, awardCareer, createCareerProfile, dispatchableCases, fictionalTransitSeconds, normalizeCareerProfile, purchaseUpgrade, rankFor, selectCareerCase } from './career'
+import { applyCareerModifiers, awardCareer, CAREER_MILESTONES, createCareerProfile, dispatchableCases, fictionalTransitSeconds, milestoneProgress, normalizeCareerProfile, purchaseUpgrade, rankFor, selectCareerCase } from './career'
 import { CASE_LIST } from '../content/cases'
 import type { ScoreReport } from './types'
 
@@ -56,5 +56,15 @@ describe('career progression', () => {
     expect(fictionalTransitSeconds('hospital', profile)).toBe(160)
     expect(fictionalTransitSeconds('hospital', { ...profile, upgrades: ['fleet_clearance', 'night_drive'] })).toBe(105)
     expect(fictionalTransitSeconds('discharge', profile)).toBe(0)
+  })
+
+  it('awards campaign milestones once and persists their credit reward', () => {
+    const profile = { ...createCareerProfile(), missionsCompleted: 2, missionStreak: 2, credits: 100 }
+    const reward = awardCareer(profile, report, 'CASE-001')
+    expect(reward.milestoneRewards.map((milestone) => milestone.id)).toEqual(['first_route', 'steady_shift'])
+    expect(reward.profile.milestones).toEqual(['first_route', 'steady_shift'])
+    expect(reward.profile.credits).toBeGreaterThan(100 + reward.creditsEarned)
+    expect(milestoneProgress(reward.profile, CAREER_MILESTONES[0])).toBe(3)
+    expect(awardCareer(reward.profile, report, 'CASE-003').milestoneRewards.map((milestone) => milestone.id)).not.toContain('first_route')
   })
 })
