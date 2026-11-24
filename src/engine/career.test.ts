@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCareerModifiers, awardCareer, createCareerProfile, purchaseUpgrade, rankFor, selectCareerCase } from './career'
+import { applyCareerModifiers, awardCareer, createCareerProfile, normalizeCareerProfile, purchaseUpgrade, rankFor, selectCareerCase } from './career'
 import { CASE_LIST } from '../content/cases'
 import type { ScoreReport } from './types'
 
@@ -36,5 +36,11 @@ describe('career progression', () => {
     const profile = { ...createCareerProfile(), recentCaseIds: ['CASE-001', 'CASE-003', 'CASE-004', 'CASE-011'] }
     const selected = selectCareerCase(CASE_LIST, profile, () => 0)
     expect(profile.recentCaseIds).not.toContain(selected.id)
+  })
+
+  it('starts and migrates careers with a valid service contract', () => {
+    expect(createCareerProfile().serviceProfileId).toBe('samu_usb')
+    expect(normalizeCareerProfile({ serviceProfileId: 'paramedic_response' }).serviceProfileId).toBe('paramedic_response')
+    expect(normalizeCareerProfile({ serviceProfileId: 'unsupported' as never }).serviceProfileId).toBe('samu_usb')
   })
 })

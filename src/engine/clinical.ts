@@ -1,7 +1,8 @@
 import { CASES } from '../content/cases'
 import { medicationEvidenceFor } from '../content/medicationEvidence'
 import { missionVariantFor } from '../content/missionVariants'
-import type { ActionResult, CaseId, Destination, GameState, LogEntry, ScoreReport } from './types'
+import { serviceProfileFor } from '../content/serviceProfiles'
+import type { ActionResult, CaseId, Destination, GameState, LogEntry, ScoreReport, ServiceProfileId } from './types'
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
@@ -104,10 +105,10 @@ const medicationRiskAttempt = (state: GameState, medicationId: string): ActionRe
   return finish(next, entry(next, virtualRisk ? 'RISCO_FARMACOLÓGICO_VIRTUAL' : 'MEDICAÇÃO_SEM_MODELO_VALIDADO', outcome, 'danger'))
 }
 
-export const createCaseState = (caseId: CaseId, seed = Math.floor(Date.now() % 1000000)): GameState => {
+export const createCaseState = (caseId: CaseId, seed = Math.floor(Date.now() % 1000000), serviceProfileId: ServiceProfileId = 'samu_usb'): GameState => {
   const scenario = CASES[caseId]
   const state: GameState = {
-    schemaVersion: 1, caseId, seed, missionVariantId: missionVariantFor(caseId, seed).id, elapsedSeconds: 0, speed: 1, vitals: varyVitals(scenario.baseline, seed), monitorConnected: true,
+    schemaVersion: 1, caseId, seed, serviceProfileId, missionVariantId: missionVariantFor(caseId, seed).id, elapsedSeconds: 0, speed: 1, vitals: varyVitals(scenario.baseline, seed), monitorConnected: true,
     knownInvestigations: [], completedInterventions: ['monitor'], medicationsGiven: [], protocolEvents: [], wounds: scenario.wound ? [{ ...scenario.wound }] : [],
     defibrillator: { pads: false, charged: false, cleared: false, shocked: false }, ventilation: 'off', compressions: 0,
     infusionActive: false, actionLog: [], penalties: 0, status: 'active',
@@ -129,6 +130,7 @@ export const investigate = (state: GameState, investigationId: string): ActionRe
 
 export const intervene = (state: GameState, interventionId: string): ActionResult => {
   const scenario = CASES[state.caseId]
+  if (!serviceProfileFor(state.serviceProfileId).interventions.includes(interventionId)) return reject(state, 'RECURSO_NÃO_EMBARCADO', 'Este recurso não integra o contrato de unidade desta missão.', 8)
   if (!scenario.interventions.includes(interventionId)) return unsafeAttempt(state, 'AÇÃO_INCOMPATÍVEL', 'Ação incompatível com este cenário ou sem autorização no roteiro.')
   if (state.completedInterventions.includes(interventionId)) return reject(state, 'AÇÃO_REPETIDA', 'Ação já concluída: reavalie o paciente antes de repeti-la.')
   if (interventionId === 'control_bleeding' && !state.knownInvestigations.includes('arm_left')) return unsafeAttempt(state, 'AÇÃO_SEM_AVALIAÇÃO', 'Ação tentada sem a avaliação prévia requerida pelo cenário.', 12)
@@ -156,6 +158,7 @@ export const intervene = (state: GameState, interventionId: string): ActionResul
 
 export const administerMedication = (state: GameState, medicationId: string): ActionResult => {
   const scenario = CASES[state.caseId]
+  if (!serviceProfileFor(state.serviceProfileId).medications.includes(medicationId)) return reject(state, 'ITEM_NÃO_EMBARCADO', 'Este item não integra o catálogo virtual da unidade nesta missão.', 8)
   if (!scenario.medications.includes(medicationId)) return medicationRiskAttempt(state, medicationId)
   if (state.medicationsGiven.includes(medicationId)) return reject(state, 'MEDICAÇÃO_REPETIDA', 'Item já registrado neste atendimento.')
   if (medicationId === 'glucose-gel' && !state.knownInvestigations.includes('glucose')) return unsafeAttempt(state, 'MEDICAÇÃO_SEM_AVALIAÇÃO', 'Item tentado sem a avaliação requerida pelo roteiro.', 18)

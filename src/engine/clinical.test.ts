@@ -30,7 +30,7 @@ describe('motor do Vale Rescue', () => {
   })
 
   it('modela resposta virtual autorizada no roteiro de respiração lenta', () => {
-    const initial = createCaseState('CASE-024', 68)
+    const initial = createCaseState('CASE-024', 68, 'samu_usa')
     const before = { ...initial.vitals }
     const result = administerMedication(initial, 'reversal')
     expect(result.nextState.medicationsGiven).toContain('reversal')
@@ -86,7 +86,7 @@ describe('motor do Vale Rescue', () => {
   })
 
   it('não inventa uma resposta individual ao tentar medicamento fora do roteiro', () => {
-    const initial = createCaseState('CASE-004', 19)
+    const initial = createCaseState('CASE-004', 19, 'paramedic_response')
     const result = administerMedication(initial, 'propofol')
     expect(result.feedback.code).toBe('MEDICAÇÃO_SEM_MODELO_VALIDADO')
     expect(result.nextState.penalties).toBeGreaterThan(initial.penalties)
@@ -106,7 +106,7 @@ describe('motor do Vale Rescue', () => {
   })
 
   it('aplica risco virtual com fonte ao anticoagulante em sangramento ativo', () => {
-    const initial = createCaseState('CASE-004', 23)
+    const initial = createCaseState('CASE-004', 23, 'paramedic_response')
     const expectedTimeline = advanceTime(initial, 8)
     const result = administerMedication(initial, 'heparin')
     expect(result.feedback.code).toBe('RISCO_FARMACOLÓGICO_VIRTUAL')
@@ -137,5 +137,13 @@ describe('motor do Vale Rescue', () => {
     const incompatible = evaluateOutcome(state, 'hospital', 'Trauma torácico', 'Registro')
     expect(compatible.score).toBeGreaterThan(incompatible.score)
     expect(incompatible.dimensions.find((item) => item.label === 'Diagnóstico')?.value).toBe(0)
+  })
+
+  it('recusa itens fora da carga da unidade sem inventar efeito no paciente virtual', () => {
+    const initial = createCaseState('CASE-024', 68, 'samu_usb')
+    const result = administerMedication(initial, 'reversal')
+    expect(result.feedback.code).toBe('ITEM_NÃO_EMBARCADO')
+    expect(result.nextState.medicationsGiven).toEqual([])
+    expect(result.nextState.vitals).toEqual(initial.vitals)
   })
 })

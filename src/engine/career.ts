@@ -1,4 +1,4 @@
-import type { CaseDefinition, ScoreReport } from './types'
+import type { CaseDefinition, ScoreReport, ServiceProfileId } from './types'
 
 export type UpgradeId = 'signal_link' | 'scene_console' | 'fleet_clearance' | 'shift_pass' | 'case_library' | 'night_drive'
 
@@ -12,6 +12,7 @@ export type CareerProfile = {
   recentCaseIds: string[]
   upgrades: UpgradeId[]
   certifications: string[]
+  serviceProfileId: ServiceProfileId
 }
 
 export type CareerReward = {
@@ -53,7 +54,7 @@ export const CAREER_UPGRADES: CareerUpgrade[] = [
   { id: 'night_drive', name: 'Direção Noturna', description: '+18% de XP por sequência de plantão.', cost: 1500, icon: '☾', scoreBonus: 0, xpMultiplier: 1.18 },
 ]
 
-export const createCareerProfile = (): CareerProfile => ({ schemaVersion: 1, xp: 0, credits: 120, missionsCompleted: 0, missionStreak: 0, bestStreak: 0, recentCaseIds: [], upgrades: [], certifications: [] })
+export const createCareerProfile = (): CareerProfile => ({ schemaVersion: 1, xp: 0, credits: 120, missionsCompleted: 0, missionStreak: 0, bestStreak: 0, recentCaseIds: [], upgrades: [], certifications: [], serviceProfileId: 'samu_usb' })
 
 export const normalizeCareerProfile = (profile: Partial<CareerProfile> | null): CareerProfile => ({
   ...createCareerProfile(),
@@ -61,6 +62,7 @@ export const normalizeCareerProfile = (profile: Partial<CareerProfile> | null): 
   upgrades: Array.isArray(profile?.upgrades) ? profile.upgrades : [],
   certifications: Array.isArray(profile?.certifications) ? profile.certifications : [],
   recentCaseIds: Array.isArray(profile?.recentCaseIds) ? profile.recentCaseIds.slice(-4) : [],
+  serviceProfileId: profile?.serviceProfileId === 'samu_usa' || profile?.serviceProfileId === 'paramedic_response' || profile?.serviceProfileId === 'samu_usb' ? profile.serviceProfileId : 'samu_usb',
 })
 
 export const rankFor = (xp: number) => [...CAREER_RANKS].reverse().find((rank) => xp >= rank.minXp) ?? CAREER_RANKS[0]

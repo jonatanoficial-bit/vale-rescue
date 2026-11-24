@@ -5,6 +5,8 @@ export type CaseId =
 
 export type Destination = 'discharge' | 'hospital' | 'advanced_team'
 
+export type ServiceProfileId = 'samu_usb' | 'samu_usa' | 'paramedic_response'
+
 export type Rhythm = 'sinus' | 'respiratory_stress' | 'blood_loss_stress' | 'vf' | 'asystole' | 'post_shock'
 
 export type VitalState = {
@@ -44,6 +46,7 @@ export type GameState = {
   schemaVersion: 1
   caseId: CaseId
   seed: number
+  serviceProfileId: ServiceProfileId
   missionVariantId: string
   elapsedSeconds: number
   speed: 0 | 1 | 2 | 3
