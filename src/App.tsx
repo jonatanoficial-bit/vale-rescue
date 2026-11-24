@@ -36,6 +36,7 @@ function App() {
   const [career, setCareer] = useState<CareerProfile>(createCareerProfile)
   const [careerLoaded, setCareerLoaded] = useState(false)
   const [careerReward, setCareerReward] = useState<CareerReward | null>(null)
+  const [safetyAcknowledged, setSafetyAcknowledged] = useState(false)
 
   useEffect(() => {
     if (!game || game.status !== 'active' || game.speed === 0) return
@@ -60,7 +61,7 @@ function App() {
   const buyUpgrade = (upgradeId: UpgradeId) => { const next = purchaseUpgrade(career, upgradeId); if (!next) return false; setCareer(next); return true }
   const certify = (moduleId: string) => setCareer((current) => current.certifications.includes(moduleId) ? current : { ...current, certifications: [...current.certifications, moduleId] })
 
-  if (screen === 'home') return <Home profile={career} onStart={() => { setMode('carreira'); startAssigned() }} onContinue={continueCareer} onSettings={() => setScreen('settings')} onCareer={() => setScreen('career')} />
+  if (screen === 'home') return <Home profile={career} safetyAcknowledged={safetyAcknowledged} onAcknowledgeSafety={() => setSafetyAcknowledged(true)} onStart={() => { setMode('carreira'); startAssigned() }} onContinue={continueCareer} onSettings={() => setScreen('settings')} onCareer={() => setScreen('career')} />
   if (screen === 'settings') return <Settings volume={volume} onVolume={setVolume} onBack={() => setScreen('home')} />
   if (screen === 'career') return <CareerScreen profile={career} onBuy={buyUpgrade} onLearning={() => setScreen('learning')} onBack={() => setScreen(game?.status === 'active' ? 'game' : 'home')} />
   if (screen === 'learning') return <LearningScreen profile={career} onCertify={certify} onBack={() => setScreen('career')} />
@@ -107,7 +108,7 @@ function App() {
   </main>
 }
 
-function Home({ profile, onStart, onContinue, onSettings, onCareer }: { profile: CareerProfile; onStart: () => void; onContinue: () => void; onSettings: () => void; onCareer: () => void }) {
+function Home({ profile, safetyAcknowledged, onAcknowledgeSafety, onStart, onContinue, onSettings, onCareer }: { profile: CareerProfile; safetyAcknowledged: boolean; onAcknowledgeSafety: () => void; onStart: () => void; onContinue: () => void; onSettings: () => void; onCareer: () => void }) {
   const rank = rankFor(profile.xp)
   const next = nextRankFor(profile.xp)
   return <main className="home-screen">
@@ -117,8 +118,10 @@ function Home({ profile, onStart, onContinue, onSettings, onCareer }: { profile:
     <section className="home-copy"><p className="eyebrow">CENTRAL ONLINE · MISSÕES FICCIONAIS</p><h1><span>VALE</span><em>RESCUE</em></h1><p className="home-subtitle">ENTRE NA AMBULÂNCIA. RESPONDA AO CHAMADO.</p><p className="home-text">A Central atribui a ocorrência. Analise o cenário, acompanhe o monitor simulado e registre o desfecho da missão.</p><div className="home-actions"><button className="start-mission" onClick={onStart}><span>▶</span><div><b>INICIAR PLANTÃO</b><small>Ocorrência atribuída pela Central</small></div><i>●</i></button><button className="home-action-card" onClick={onContinue}><span>↻</span><div><b>RETOMAR MISSÃO</b><small>Voltar ao atendimento salvo</small></div></button><button className="home-action-card" onClick={onCareer}><span>◆</span><div><b>CARREIRA E GARAGEM</b><small>XP, promoções e melhorias</small></div></button><button className="home-action-card settings" onClick={onSettings}><span>⚙</span><div><b>AJUSTES</b><small>Som e preferências</small></div></button></div><p className="home-disclaimer">Jogo de simulação ficcional. Não substitui protocolos, orientação médica ou treinamento profissional.</p></section>
     <aside className="home-status"><span>PROGRESSO DE CARREIRA</span><strong>{profile.xp} XP</strong><div><i style={{ width: `${next ? Math.min(100, (profile.xp / next.minXp) * 100) : 100}%` }} /></div><small>{next ? `${next.minXp - profile.xp} XP para ${next.name}` : 'Patente máxima alcançada'}</small><b>▦ {CASE_LIST.length} casos-base · 12 contextos</b><b>⚡ {profile.missionStreak} plantão(ões) em sequência · recorde {profile.bestStreak}</b><b>{profile.missionsCompleted} missões concluídas</b></aside>
     <div className="home-scan" aria-hidden="true"><span /><span /><span /></div>
+    {!safetyAcknowledged && <SafetyNotice onAcknowledge={onAcknowledgeSafety} />}
   </main>
 }
+function SafetyNotice({ onAcknowledge }: { onAcknowledge: () => void }) { return <section className="safety-overlay" role="dialog" aria-modal="true" aria-labelledby="safety-title"><div className="safety-card"><p className="eyebrow">AVISO OBRIGATÓRIO · SIMULAÇÃO</p><h2 id="safety-title">Não use este jogo em uma emergência real.</h2><p>Vale Rescue é uma experiência ficcional de treinamento. Não substitui formação profissional, supervisão, protocolos locais, direção médica ou avaliação de uma pessoa real.</p><p>Nomes de medicamentos, equipamentos e protocolos aparecem somente como elementos de simulação: não há doses, quantidades, instruções operacionais ou autorização para uso real.</p><p className="safety-emergency">Em uma emergência real, acione o serviço de urgência local e siga profissionais habilitados.</p><button className="primary" onClick={onAcknowledge}>Entendi — entrar na Central</button><small>Escopo profissional, equipe, recursos e medicamentos variam conforme serviço, jurisdição e autorização clínica.</small></div></section> }
 function CareerScreen({ profile, onBuy, onLearning, onBack }: { profile: CareerProfile; onBuy: (id: UpgradeId) => boolean; onLearning: () => void; onBack: () => void }) {
   const rank = rankFor(profile.xp)
   const next = nextRankFor(profile.xp)

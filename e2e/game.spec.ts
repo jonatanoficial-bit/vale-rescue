@@ -1,7 +1,13 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+const acknowledgeSafety = async (page: Page) => {
+  await expect(page.getByRole('dialog', { name: /não use este jogo/i })).toBeVisible()
+  await page.getByRole('button', { name: /entendi.*central/i }).click()
+}
 
 test('inicia uma ocorrência e gera relatório', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' })
+  await acknowledgeSafety(page)
   const startMission = page.getByRole('button', { name: /iniciar plantão/i })
   await expect(startMission).toBeVisible()
   await expect(startMission).toHaveCSS('background-image', /linear-gradient/)
@@ -28,6 +34,7 @@ test('inicia uma ocorrência e gera relatório', async ({ page }) => {
 
 test('abre a carreira e os protocolos de missão com bloqueio por XP', async ({ page }) => {
   await page.goto('/', { waitUntil: 'domcontentloaded' })
+  await acknowledgeSafety(page)
   await page.getByRole('button', { name: /carreira e garagem/i }).click()
   await expect(page.getByRole('heading', { name: 'Cadete' })).toBeVisible()
   await page.getByRole('button', { name: /abrir protocolos/i }).click()
@@ -39,6 +46,7 @@ for (const viewport of [{ name: 'retrato', width: 390, height: 844 }, { name: 'p
   test(`mantém o cockpit dentro do viewport mobile em ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height })
     await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await acknowledgeSafety(page)
     await expect(page.getByRole('button', { name: /iniciar plantão/i })).toBeVisible()
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true)
     await page.getByRole('button', { name: /iniciar plantão/i }).click()
