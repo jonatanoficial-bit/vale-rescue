@@ -4,6 +4,8 @@ import { serviceProfileFor } from '../content/serviceProfiles'
 export type UpgradeId = 'signal_link' | 'scene_console' | 'fleet_clearance' | 'shift_pass' | 'case_library' | 'night_drive'
 export type CareerMilestoneId = 'first_route' | 'steady_shift' | 'first_promotion' | 'garage_online' | 'central_veteran'
 export type LiveryId = 'vale_standard' | 'nightwatch' | 'gold_signal' | 'central_archive'
+export type CareerSeasonId = 'nightshift' | 'crosswind' | 'frontline'
+export type CareerOperationId = 'open_frequency' | 'rain_line' | 'signal_crossing' | 'district_watch' | 'network_pulse' | 'last_lantern'
 
 export type CareerProfile = {
   schemaVersion: 1
@@ -18,6 +20,7 @@ export type CareerProfile = {
   serviceProfileId: ServiceProfileId
   milestones: CareerMilestoneId[]
   liveryId: LiveryId
+  completedOperations: CareerOperationId[]
 }
 
 export type CareerReward = {
@@ -28,6 +31,7 @@ export type CareerReward = {
   contextBonus: number
   promoted: boolean
   milestoneRewards: CareerMilestone[]
+  operationReward?: CareerOperation
 }
 
 export type CareerUpgrade = {
@@ -58,6 +62,27 @@ export type CareerLivery = {
   tag: string
   icon: string
   requiredMilestone?: CareerMilestoneId
+}
+
+export type CareerSeason = {
+  id: CareerSeasonId
+  code: string
+  name: string
+  description: string
+  icon: string
+  startMission: number
+  endMission?: number
+}
+
+export type CareerOperation = {
+  id: CareerOperationId
+  seasonId: CareerSeasonId
+  name: string
+  description: string
+  dispatchTag: string
+  unlockMission: number
+  creditReward: number
+  icon: string
 }
 
 export const CAREER_RANKS = [
@@ -95,7 +120,22 @@ export const CAREER_LIVERIES: readonly CareerLivery[] = [
   { id: 'central_archive', name: 'Arquivo Central', description: 'Identidade de veterania da Central.', tag: 'VETERANIA', icon: '▦', requiredMilestone: 'central_veteran' },
 ]
 
-export const createCareerProfile = (): CareerProfile => ({ schemaVersion: 1, xp: 0, credits: 120, missionsCompleted: 0, missionStreak: 0, bestStreak: 0, recentCaseIds: [], upgrades: [], certifications: [], serviceProfileId: 'samu_usb', milestones: [], liveryId: 'vale_standard' })
+export const CAREER_SEASONS: readonly CareerSeason[] = [
+  { id: 'nightshift', code: 'TEMPORADA 01', name: 'Plantão Noturno', description: 'A Central abre a primeira rota e atribui operações de estreia.', icon: '☾', startMission: 0, endMission: 9 },
+  { id: 'crosswind', code: 'TEMPORADA 02', name: 'Sinais Cruzados', description: 'Novos bairros, contextos variados e operações de rede.', icon: '⌁', startMission: 10, endMission: 24 },
+  { id: 'frontline', code: 'TEMPORADA 03', name: 'Linha de Frente', description: 'A carreira entra em rodízio avançado com chamadas especiais contínuas.', icon: '✦', startMission: 25 },
+]
+
+export const CAREER_OPERATIONS: readonly CareerOperation[] = [
+  { id: 'open_frequency', seasonId: 'nightshift', name: 'Frequência Aberta', description: 'Uma chamada de estreia atravessa a malha noturna da Central.', dispatchTag: 'OPERAÇÃO ESPECIAL', unlockMission: 0, creditReward: 85, icon: '◈' },
+  { id: 'rain_line', seasonId: 'nightshift', name: 'Linha de Chuva', description: 'A unidade é redirecionada durante uma sequência de chamados sob chuva.', dispatchTag: 'OPERAÇÃO ESPECIAL', unlockMission: 5, creditReward: 120, icon: '☂' },
+  { id: 'signal_crossing', seasonId: 'crosswind', name: 'Cruzamento de Sinal', description: 'A Central conecta relatos de setores diferentes em uma mesma janela.', dispatchTag: 'OPERAÇÃO ESPECIAL', unlockMission: 10, creditReward: 145, icon: '⌁' },
+  { id: 'district_watch', seasonId: 'crosswind', name: 'Vigília de Distrito', description: 'Uma unidade cobre o setor enquanto a cidade muda de ritmo.', dispatchTag: 'OPERAÇÃO ESPECIAL', unlockMission: 17, creditReward: 170, icon: '◌' },
+  { id: 'network_pulse', seasonId: 'frontline', name: 'Pulso da Rede', description: 'A rota mistura contextos e mantém a Central em alerta prolongado.', dispatchTag: 'OPERAÇÃO ESPECIAL', unlockMission: 25, creditReward: 210, icon: 'ϟ' },
+  { id: 'last_lantern', seasonId: 'frontline', name: 'Última Lanterna', description: 'Uma chamada especial fecha o turno com visibilidade reduzida.', dispatchTag: 'OPERAÇÃO ESPECIAL', unlockMission: 34, creditReward: 260, icon: '✦' },
+]
+
+export const createCareerProfile = (): CareerProfile => ({ schemaVersion: 1, xp: 0, credits: 120, missionsCompleted: 0, missionStreak: 0, bestStreak: 0, recentCaseIds: [], upgrades: [], certifications: [], serviceProfileId: 'samu_usb', milestones: [], liveryId: 'vale_standard', completedOperations: [] })
 
 export const normalizeCareerProfile = (profile: Partial<CareerProfile> | null): CareerProfile => ({
   ...createCareerProfile(),
@@ -104,6 +144,7 @@ export const normalizeCareerProfile = (profile: Partial<CareerProfile> | null): 
   certifications: Array.isArray(profile?.certifications) ? profile.certifications : [],
   recentCaseIds: Array.isArray(profile?.recentCaseIds) ? profile.recentCaseIds.slice(-4) : [],
   milestones: Array.isArray(profile?.milestones) ? profile.milestones.filter((id) => CAREER_MILESTONES.some((milestone) => milestone.id === id)) : [],
+  completedOperations: Array.isArray(profile?.completedOperations) ? profile.completedOperations.filter((id): id is CareerOperationId => CAREER_OPERATIONS.some((operation) => operation.id === id)) : [],
   liveryId: profile?.liveryId === 'nightwatch' || profile?.liveryId === 'gold_signal' || profile?.liveryId === 'central_archive' || profile?.liveryId === 'vale_standard' ? profile.liveryId : 'vale_standard',
   serviceProfileId: profile?.serviceProfileId === 'samu_usa' || profile?.serviceProfileId === 'paramedic_response' || profile?.serviceProfileId === 'samu_usb' ? profile.serviceProfileId : 'samu_usb',
 })
@@ -122,6 +163,23 @@ export const milestoneProgress = (profile: CareerProfile, milestone: CareerMiles
 export const liveryFor = (id: LiveryId) => CAREER_LIVERIES.find((livery) => livery.id === id) ?? CAREER_LIVERIES[0]
 
 export const liveryIsUnlocked = (profile: CareerProfile, livery: CareerLivery): boolean => !livery.requiredMilestone || profile.milestones.includes(livery.requiredMilestone)
+
+export const seasonFor = (missionsCompleted: number): CareerSeason => CAREER_SEASONS.find((season) => season.endMission === undefined || missionsCompleted <= season.endMission) ?? CAREER_SEASONS[CAREER_SEASONS.length - 1]
+
+export const seasonProgress = (profile: CareerProfile, season = seasonFor(profile.missionsCompleted)) => {
+  const target = season.endMission === undefined ? 10 : season.endMission - season.startMission + 1
+  return { completed: Math.max(0, profile.missionsCompleted - season.startMission), target }
+}
+
+const operationHash = (caseId: string, seed: number) => Math.abs(Math.floor(Math.sin((seed + [...caseId].reduce((total, char) => total + char.charCodeAt(0), 0)) * 17.371) * 9187.17))
+
+export const specialOperationFor = (profile: CareerProfile, caseId: string, seed: number): CareerOperation | null => {
+  const season = seasonFor(profile.missionsCompleted)
+  const available = CAREER_OPERATIONS.filter((operation) => operation.seasonId === season.id && operation.unlockMission <= profile.missionsCompleted && !profile.completedOperations.includes(operation.id))
+  if (!available.length) return null
+  const signal = operationHash(caseId, seed)
+  return signal % 3 === 0 ? available[signal % available.length] : null
+}
 
 const owned = (profile: CareerProfile) => CAREER_UPGRADES.filter((upgrade) => profile.upgrades.includes(upgrade.id))
 
@@ -161,17 +219,19 @@ export const fictionalTransitSeconds = (destination: ScoreReport['destination'],
   return Math.max(65, 160 - saved)
 }
 
-export const awardCareer = (profile: CareerProfile, report: ScoreReport, caseId: string, contextBonus = 0): CareerReward => {
+export const awardCareer = (profile: CareerProfile, report: ScoreReport, caseId: string, contextBonus = 0, operation: CareerOperation | null = null): CareerReward => {
   const before = rankFor(profile.xp)
   const successful = report.score >= 600
   const missionStreak = successful ? profile.missionStreak + 1 : 0
   const streakBonus = successful ? Math.min(55, missionStreak * 7) : 0
   const passMultiplier = profile.upgrades.includes('shift_pass') ? 1.25 : 1
-  const creditsEarned = Math.round(Math.max(25, Math.round(report.score / 12) + Math.floor(report.xp / 180) + streakBonus + contextBonus) * passMultiplier)
-  const progressedProfile: CareerProfile = { ...profile, xp: profile.xp + report.xp, credits: profile.credits + creditsEarned, missionsCompleted: profile.missionsCompleted + 1, missionStreak, bestStreak: Math.max(profile.bestStreak, missionStreak), recentCaseIds: [...profile.recentCaseIds, caseId].slice(-4) }
+  const baseCredits = Math.round(Math.max(25, Math.round(report.score / 12) + Math.floor(report.xp / 180) + streakBonus + contextBonus) * passMultiplier)
+  const operationReward = successful && operation && !profile.completedOperations.includes(operation.id) ? operation : undefined
+  const creditsEarned = baseCredits + (operationReward?.creditReward ?? 0)
+  const progressedProfile: CareerProfile = { ...profile, xp: profile.xp + report.xp, credits: profile.credits + creditsEarned, missionsCompleted: profile.missionsCompleted + 1, missionStreak, bestStreak: Math.max(profile.bestStreak, missionStreak), recentCaseIds: [...profile.recentCaseIds, caseId].slice(-4), completedOperations: operationReward ? [...profile.completedOperations, operationReward.id] : profile.completedOperations }
   const milestoneRewards = CAREER_MILESTONES.filter((milestone) => !progressedProfile.milestones.includes(milestone.id) && milestoneProgress(progressedProfile, milestone) >= milestone.target)
   const nextProfile: CareerProfile = { ...progressedProfile, credits: progressedProfile.credits + milestoneRewards.reduce((total, milestone) => total + milestone.creditReward, 0), milestones: [...progressedProfile.milestones, ...milestoneRewards.map((milestone) => milestone.id)] }
-  return { profile: nextProfile, xpEarned: report.xp, creditsEarned, streakBonus, contextBonus, promoted: rankFor(nextProfile.xp).name !== before.name, milestoneRewards }
+  return { profile: nextProfile, xpEarned: report.xp, creditsEarned, streakBonus, contextBonus, promoted: rankFor(nextProfile.xp).name !== before.name, milestoneRewards, operationReward }
 }
 
 export const purchaseUpgrade = (profile: CareerProfile, upgradeId: UpgradeId): CareerProfile | null => {

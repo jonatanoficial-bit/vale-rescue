@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCareerModifiers, awardCareer, CAREER_LIVERIES, CAREER_MILESTONES, createCareerProfile, dispatchableCases, fictionalTransitSeconds, liveryIsUnlocked, milestoneProgress, normalizeCareerProfile, purchaseUpgrade, rankFor, selectCareerCase } from './career'
+import { applyCareerModifiers, awardCareer, CAREER_LIVERIES, CAREER_MILESTONES, CAREER_OPERATIONS, createCareerProfile, dispatchableCases, fictionalTransitSeconds, liveryIsUnlocked, milestoneProgress, normalizeCareerProfile, purchaseUpgrade, rankFor, seasonFor, seasonProgress, selectCareerCase, specialOperationFor } from './career'
 import { CASE_LIST } from '../content/cases'
 import type { ScoreReport } from './types'
 
@@ -41,6 +41,7 @@ describe('career progression', () => {
   it('starts and migrates careers with a valid service contract', () => {
     expect(createCareerProfile().serviceProfileId).toBe('samu_usb')
     expect(createCareerProfile().liveryId).toBe('vale_standard')
+    expect(createCareerProfile().completedOperations).toEqual([])
     expect(normalizeCareerProfile({ serviceProfileId: 'paramedic_response' }).serviceProfileId).toBe('paramedic_response')
     expect(normalizeCareerProfile({ serviceProfileId: 'unsupported' as never }).serviceProfileId).toBe('samu_usb')
     expect(normalizeCareerProfile({ liveryId: 'nightwatch' }).liveryId).toBe('nightwatch')
@@ -76,5 +77,25 @@ describe('career progression', () => {
     expect(nightwatch).toBeDefined()
     expect(liveryIsUnlocked(profile, nightwatch!)).toBe(false)
     expect(liveryIsUnlocked({ ...profile, milestones: ['first_route'] }, nightwatch!)).toBe(true)
+  })
+
+  it('moves the campaign through seasons and assigns special operations without manual selection', () => {
+    const profile = createCareerProfile()
+    expect(seasonFor(0).name).toBe('Plantão Noturno')
+    expect(seasonFor(10).name).toBe('Sinais Cruzados')
+    expect(seasonProgress({ ...profile, missionsCompleted: 4 }).completed).toBe(4)
+    const assigned = Array.from({ length: 24 }, (_, seed) => specialOperationFor(profile, 'CASE-001', seed)).find(Boolean)
+    expect(assigned).toBeDefined()
+    expect(assigned?.seasonId).toBe('nightshift')
+  })
+
+  it('rewards a well-rated special operation only once', () => {
+    const profile = createCareerProfile()
+    const operation = CAREER_OPERATIONS[0]
+    const reward = awardCareer(profile, report, 'CASE-001', 0, operation)
+    expect(reward.operationReward?.id).toBe(operation.id)
+    expect(reward.profile.completedOperations).toContain(operation.id)
+    expect(reward.creditsEarned).toBeGreaterThan(operation.creditReward)
+    expect(awardCareer(reward.profile, report, 'CASE-003', 0, operation).operationReward).toBeUndefined()
   })
 })
