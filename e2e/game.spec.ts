@@ -42,7 +42,9 @@ test('abre a carreira e os protocolos de missão com bloqueio por XP', async ({ 
   await page.getByRole('button', { name: /carreira e garagem/i }).click()
   await expect(page.getByRole('heading', { name: 'Cadete' })).toBeVisible()
   await expect(page.getByRole('heading', { name: /marcos da central/i })).toBeVisible()
-  await expect(page.getByText(/rota inaugurada/i)).toBeVisible()
+  await expect(page.getByText('Rota inaugurada', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /acabamentos da garagem/i })).toBeVisible()
+  await expect(page.getByText(/vale padrão/i)).toBeVisible()
   await expect(page.getByRole('heading', { name: /histórico de plantões/i })).toBeVisible()
   await expect(page.getByRole('heading', { name: /equipe e carga da próxima missão/i })).toBeVisible()
   await page.getByRole('button', { name: /abrir protocolos/i }).click()
@@ -63,5 +65,28 @@ for (const viewport of [{ name: 'retrato', width: 390, height: 844 }, { name: 'p
     await expect(page.locator('.scene-tool-dock')).toBeVisible()
     await expect(page.locator('.command-panel')).toBeVisible()
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true)
+  })
+
+  test(`mantém o prontuário utilizável no mobile em ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await acknowledgeSafety(page)
+    await page.getByRole('button', { name: /iniciar plantão/i }).click()
+    await page.getByRole('button', { name: /iniciar atendimento/i }).click()
+    await page.getByRole('button', { name: /prontuário/i }).click()
+
+    const record = page.locator('.panel-content.record')
+    await expect(record).toBeVisible()
+    await expect(record).toHaveAttribute('aria-label', /prontuário ficcional/i)
+    await expect(record.getByText(/registro ficcional da missão/i)).toBeAttached()
+    const metrics = await record.evaluate((element) => {
+      const style = getComputedStyle(element)
+      const before = element.scrollTop
+      element.scrollTop = element.scrollHeight
+      return { overflowY: style.overflowY, clientHeight: element.clientHeight, scrollHeight: element.scrollHeight, scrollTop: element.scrollTop, before }
+    })
+    expect(metrics.clientHeight).toBeGreaterThan(40)
+    expect(metrics.overflowY).toMatch(/auto|scroll/)
+    if (metrics.scrollHeight > metrics.clientHeight) expect(metrics.scrollTop).toBeGreaterThan(metrics.before)
   })
 }

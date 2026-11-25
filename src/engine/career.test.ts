@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCareerModifiers, awardCareer, CAREER_MILESTONES, createCareerProfile, dispatchableCases, fictionalTransitSeconds, milestoneProgress, normalizeCareerProfile, purchaseUpgrade, rankFor, selectCareerCase } from './career'
+import { applyCareerModifiers, awardCareer, CAREER_LIVERIES, CAREER_MILESTONES, createCareerProfile, dispatchableCases, fictionalTransitSeconds, liveryIsUnlocked, milestoneProgress, normalizeCareerProfile, purchaseUpgrade, rankFor, selectCareerCase } from './career'
 import { CASE_LIST } from '../content/cases'
 import type { ScoreReport } from './types'
 
@@ -40,8 +40,10 @@ describe('career progression', () => {
 
   it('starts and migrates careers with a valid service contract', () => {
     expect(createCareerProfile().serviceProfileId).toBe('samu_usb')
+    expect(createCareerProfile().liveryId).toBe('vale_standard')
     expect(normalizeCareerProfile({ serviceProfileId: 'paramedic_response' }).serviceProfileId).toBe('paramedic_response')
     expect(normalizeCareerProfile({ serviceProfileId: 'unsupported' as never }).serviceProfileId).toBe('samu_usb')
+    expect(normalizeCareerProfile({ liveryId: 'nightwatch' }).liveryId).toBe('nightwatch')
   })
 
   it('dispatches only scenarios compatible with the chosen virtual unit', () => {
@@ -66,5 +68,13 @@ describe('career progression', () => {
     expect(reward.profile.credits).toBeGreaterThan(100 + reward.creditsEarned)
     expect(milestoneProgress(reward.profile, CAREER_MILESTONES[0])).toBe(3)
     expect(awardCareer(reward.profile, report, 'CASE-003').milestoneRewards.map((milestone) => milestone.id)).not.toContain('first_route')
+  })
+
+  it('unlocks cosmetic liveries only through their career milestone', () => {
+    const profile = createCareerProfile()
+    const nightwatch = CAREER_LIVERIES.find((livery) => livery.id === 'nightwatch')
+    expect(nightwatch).toBeDefined()
+    expect(liveryIsUnlocked(profile, nightwatch!)).toBe(false)
+    expect(liveryIsUnlocked({ ...profile, milestones: ['first_route'] }, nightwatch!)).toBe(true)
   })
 })

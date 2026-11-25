@@ -3,6 +3,7 @@ import { serviceProfileFor } from '../content/serviceProfiles'
 
 export type UpgradeId = 'signal_link' | 'scene_console' | 'fleet_clearance' | 'shift_pass' | 'case_library' | 'night_drive'
 export type CareerMilestoneId = 'first_route' | 'steady_shift' | 'first_promotion' | 'garage_online' | 'central_veteran'
+export type LiveryId = 'vale_standard' | 'nightwatch' | 'gold_signal' | 'central_archive'
 
 export type CareerProfile = {
   schemaVersion: 1
@@ -16,6 +17,7 @@ export type CareerProfile = {
   certifications: string[]
   serviceProfileId: ServiceProfileId
   milestones: CareerMilestoneId[]
+  liveryId: LiveryId
 }
 
 export type CareerReward = {
@@ -49,6 +51,15 @@ export type CareerMilestone = {
   creditReward: number
 }
 
+export type CareerLivery = {
+  id: LiveryId
+  name: string
+  description: string
+  tag: string
+  icon: string
+  requiredMilestone?: CareerMilestoneId
+}
+
 export const CAREER_RANKS = [
   { name: 'Cadete', minXp: 0 },
   { name: 'Socorrista', minXp: 500 },
@@ -77,7 +88,14 @@ export const CAREER_MILESTONES: readonly CareerMilestone[] = [
   { id: 'central_veteran', name: 'Arquivo da Central', description: 'Conclua 12 missões.', icon: '▦', metric: 'missions', target: 12, creditReward: 320 },
 ]
 
-export const createCareerProfile = (): CareerProfile => ({ schemaVersion: 1, xp: 0, credits: 120, missionsCompleted: 0, missionStreak: 0, bestStreak: 0, recentCaseIds: [], upgrades: [], certifications: [], serviceProfileId: 'samu_usb', milestones: [] })
+export const CAREER_LIVERIES: readonly CareerLivery[] = [
+  { id: 'vale_standard', name: 'Vale padrão', description: 'Acabamento original da Unidade 07.', tag: 'BASE', icon: '▣' },
+  { id: 'nightwatch', name: 'Nightwatch', description: 'Acentos de patrulha noturna para a Central.', tag: 'ROTA INAUGURADA', icon: '☾', requiredMilestone: 'first_route' },
+  { id: 'gold_signal', name: 'Sinal dourado', description: 'Detalhes de comando para a primeira promoção.', tag: 'PROMOÇÃO', icon: '✦', requiredMilestone: 'first_promotion' },
+  { id: 'central_archive', name: 'Arquivo Central', description: 'Identidade de veterania da Central.', tag: 'VETERANIA', icon: '▦', requiredMilestone: 'central_veteran' },
+]
+
+export const createCareerProfile = (): CareerProfile => ({ schemaVersion: 1, xp: 0, credits: 120, missionsCompleted: 0, missionStreak: 0, bestStreak: 0, recentCaseIds: [], upgrades: [], certifications: [], serviceProfileId: 'samu_usb', milestones: [], liveryId: 'vale_standard' })
 
 export const normalizeCareerProfile = (profile: Partial<CareerProfile> | null): CareerProfile => ({
   ...createCareerProfile(),
@@ -86,6 +104,7 @@ export const normalizeCareerProfile = (profile: Partial<CareerProfile> | null): 
   certifications: Array.isArray(profile?.certifications) ? profile.certifications : [],
   recentCaseIds: Array.isArray(profile?.recentCaseIds) ? profile.recentCaseIds.slice(-4) : [],
   milestones: Array.isArray(profile?.milestones) ? profile.milestones.filter((id) => CAREER_MILESTONES.some((milestone) => milestone.id === id)) : [],
+  liveryId: profile?.liveryId === 'nightwatch' || profile?.liveryId === 'gold_signal' || profile?.liveryId === 'central_archive' || profile?.liveryId === 'vale_standard' ? profile.liveryId : 'vale_standard',
   serviceProfileId: profile?.serviceProfileId === 'samu_usa' || profile?.serviceProfileId === 'paramedic_response' || profile?.serviceProfileId === 'samu_usb' ? profile.serviceProfileId : 'samu_usb',
 })
 
@@ -99,6 +118,10 @@ export const milestoneProgress = (profile: CareerProfile, milestone: CareerMiles
   if (milestone.metric === 'xp') return profile.xp
   return profile.upgrades.length
 }
+
+export const liveryFor = (id: LiveryId) => CAREER_LIVERIES.find((livery) => livery.id === id) ?? CAREER_LIVERIES[0]
+
+export const liveryIsUnlocked = (profile: CareerProfile, livery: CareerLivery): boolean => !livery.requiredMilestone || profile.milestones.includes(livery.requiredMilestone)
 
 const owned = (profile: CareerProfile) => CAREER_UPGRADES.filter((upgrade) => profile.upgrades.includes(upgrade.id))
 
