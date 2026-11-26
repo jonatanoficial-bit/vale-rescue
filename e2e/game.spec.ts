@@ -48,6 +48,8 @@ test('abre a carreira e os protocolos de missão com bloqueio por XP', async ({ 
   await expect(page.getByText('Rota inaugurada', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: /acabamentos da garagem/i })).toBeVisible()
   await expect(page.getByText(/vale padrão/i)).toBeVisible()
+  await expect(page.getByRole('heading', { name: /modelos da unidade/i })).toBeVisible()
+  await expect(page.getByText(/rescue van 07/i)).toBeVisible()
   await expect(page.getByRole('heading', { name: /temporadas da central/i })).toBeVisible()
   await expect(page.locator('.season-board').getByText('Plantão Noturno', { exact: true })).toBeVisible()
   await expect(page.locator('.season-board').getByText(/operações especiais/i)).toBeVisible()

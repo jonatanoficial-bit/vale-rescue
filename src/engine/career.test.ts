@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCareerModifiers, awardCareer, CAREER_LIVERIES, CAREER_MILESTONES, CAREER_OPERATIONS, createCareerProfile, dispatchableCases, fictionalTransitSeconds, liveryIsUnlocked, milestoneProgress, normalizeCareerProfile, purchaseUpgrade, rankFor, seasonFor, seasonProgress, selectCareerCase, specialOperationFor } from './career'
+import { applyCareerModifiers, awardCareer, CAREER_LIVERIES, CAREER_MILESTONES, CAREER_OPERATIONS, CAREER_VEHICLES, createCareerProfile, dispatchableCases, fictionalTransitSeconds, liveryIsUnlocked, milestoneProgress, normalizeCareerProfile, purchaseUpgrade, rankFor, seasonFor, seasonProgress, selectCareerCase, specialOperationFor, vehicleIsUnlocked } from './career'
 import { CASE_LIST } from '../content/cases'
 import type { ScoreReport } from './types'
 
@@ -41,11 +41,13 @@ describe('career progression', () => {
   it('starts and migrates careers with a valid service contract', () => {
     expect(createCareerProfile().serviceProfileId).toBe('samu_usb')
     expect(createCareerProfile().liveryId).toBe('vale_standard')
+    expect(createCareerProfile().vehicleModelId).toBe('rescue_van')
     expect(createCareerProfile().completedOperations).toEqual([])
     expect(createCareerProfile().seenNarrativeEvents).toEqual([])
     expect(normalizeCareerProfile({ serviceProfileId: 'paramedic_response' }).serviceProfileId).toBe('paramedic_response')
     expect(normalizeCareerProfile({ serviceProfileId: 'unsupported' as never }).serviceProfileId).toBe('samu_usb')
     expect(normalizeCareerProfile({ liveryId: 'nightwatch' }).liveryId).toBe('nightwatch')
+    expect(normalizeCareerProfile({ vehicleModelId: 'night_runner' }).vehicleModelId).toBe('night_runner')
   })
 
   it('dispatches only scenarios compatible with the chosen virtual unit', () => {
@@ -80,6 +82,15 @@ describe('career progression', () => {
     expect(liveryIsUnlocked({ ...profile, milestones: ['first_route'] }, nightwatch!)).toBe(true)
   })
 
+  it('unlocks visual unit models through career-only achievements', () => {
+    const profile = createCareerProfile()
+    const urban = CAREER_VEHICLES.find((vehicle) => vehicle.id === 'urban_response')
+    const night = CAREER_VEHICLES.find((vehicle) => vehicle.id === 'night_runner')
+    expect(vehicleIsUnlocked(profile, urban!)).toBe(false)
+    expect(vehicleIsUnlocked({ ...profile, milestones: ['first_route'] }, urban!)).toBe(true)
+    expect(vehicleIsUnlocked({ ...profile, completedOperations: ['open_frequency', 'rain_line'] }, night!)).toBe(true)
+  })
+
   it('moves the campaign through seasons and assigns special operations without manual selection', () => {
     const profile = createCareerProfile()
     expect(seasonFor(0).name).toBe('Plantão Noturno')
@@ -107,5 +118,12 @@ describe('career progression', () => {
     expect(awardCareer(first.profile, report, 'CASE-003').narrativeEvent).toBeUndefined()
     const crosswindProfile = { ...first.profile, missionsCompleted: 10 }
     expect(awardCareer(crosswindProfile, report, 'CASE-004').narrativeEvent?.id).toBe('crosswind_signal')
+  })
+
+  it('closes a season once when the mission threshold is crossed', () => {
+    const profile = { ...createCareerProfile(), missionsCompleted: 9 }
+    const closing = awardCareer(profile, report, 'CASE-001')
+    expect(closing.seasonClosing?.id).toBe('nightshift')
+    expect(awardCareer(closing.profile, report, 'CASE-003').seasonClosing).toBeUndefined()
   })
 })

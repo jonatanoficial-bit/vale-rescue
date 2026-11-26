@@ -7,8 +7,8 @@ import { missionVariantById, missionVariantFor, type SceneTheme } from './conten
 import { SERVICE_PROFILES, serviceProfileFor } from './content/serviceProfiles'
 import { Monitor } from './components/Monitor'
 import { PatientScene } from './components/PatientScene'
-import { applyCareerModifiers, awardCareer, CAREER_LIVERIES, CAREER_MILESTONES, CAREER_OPERATIONS, CAREER_SEASONS, CAREER_UPGRADES, createCareerProfile, dispatchableCases, fictionalTransitSeconds, liveryFor, liveryIsUnlocked, milestoneProgress, nextRankFor, normalizeCareerProfile, purchaseUpgrade, rankFor, seasonFor, seasonProgress, selectCareerCase, specialOperationFor } from './engine/career'
-import type { CareerNarrativeEvent, CareerProfile, CareerReward, LiveryId, UpgradeId } from './engine/career'
+import { applyCareerModifiers, awardCareer, CAREER_LIVERIES, CAREER_MILESTONES, CAREER_OPERATIONS, CAREER_SEASONS, CAREER_UPGRADES, CAREER_VEHICLES, createCareerProfile, dispatchableCases, fictionalTransitSeconds, liveryFor, liveryIsUnlocked, milestoneProgress, nextRankFor, normalizeCareerProfile, purchaseUpgrade, rankFor, seasonFor, seasonProgress, selectCareerCase, specialOperationFor, vehicleFor, vehicleIsUnlocked } from './engine/career'
+import type { CareerNarrativeEvent, CareerProfile, CareerReward, CareerSeason, LiveryId, UpgradeId, VehicleModelId } from './engine/career'
 import { advanceTime, administerMedication, createCaseState, defibrillate, evaluateOutcome, investigate, intervene, registerCompression, setVentilation, startInfusion } from './engine/clinical'
 import type { ActionResult, CaseId, Destination, GameState, LogEntry, ScoreReport, ServiceProfileId } from './engine/types'
 import { clearCheckpoint, loadCareerProfile, loadCheckpoint, loadHistory, saveCareerProfile, saveCheckpoint, saveReport } from './services/persistence'
@@ -35,6 +35,7 @@ function App() {
   const [careerLoaded, setCareerLoaded] = useState(false)
   const [careerReward, setCareerReward] = useState<CareerReward | null>(null)
   const [narrativeEvent, setNarrativeEvent] = useState<CareerNarrativeEvent | null>(null)
+  const [seasonClosing, setSeasonClosing] = useState<CareerSeason | null>(null)
   const [safetyAcknowledged, setSafetyAcknowledged] = useState(false)
   const activeCaseId = game?.caseId
   const activeSeed = game?.seed
@@ -58,26 +59,27 @@ function App() {
 
   const scenario = game ? CASES[game.caseId] : null
   const enterFullscreen = () => { if (typeof document !== 'undefined' && !document.fullscreenElement) void document.documentElement.requestFullscreen?.().catch(() => undefined) }
-  const runResult = (result: ActionResult) => { setGame(result.nextState); setFeedback(result.feedback); tone(result.feedback.tone, volume) }
-  const start = (caseId: CaseId, seed?: number) => { const next = createCaseState(caseId, seed, career.serviceProfileId); setGame(next); setFeedback(next.actionLog.at(-1) ?? null); setReport(null); setCareerReward(null); setNarrativeEvent(null); setPanel('record'); setQuickDestination('hospital'); setMonitorExpanded(false); setDispatchVisible(true); setScreen('game') }
+  const runResult = (result: ActionResult, cue: SoundCue = 'feedback') => { setGame(result.nextState); setFeedback(result.feedback); playActionCue(cue, result.feedback.tone, volume) }
+  const start = (caseId: CaseId, seed?: number) => { const next = createCaseState(caseId, seed, career.serviceProfileId); setGame(next); setFeedback(next.actionLog.at(-1) ?? null); setReport(null); setCareerReward(null); setNarrativeEvent(null); setSeasonClosing(null); setPanel('record'); setQuickDestination('hospital'); setMonitorExpanded(false); setDispatchVisible(true); setScreen('game') }
   const startAssigned = () => { const available = CASE_LIST.filter((item) => (item.unlockXp ?? 0) <= career.xp && (!item.requiredCertification || career.certifications.includes(item.requiredCertification))); start(selectCareerCase(dispatchableCases(available, career), career).id) }
   const continueCareer = async () => { try { const saved = await loadCheckpoint(); if (saved && saved.status === 'active') { const resumed = { ...saved, serviceProfileId: saved.serviceProfileId ?? career.serviceProfileId, missionVariantId: saved.missionVariantId ?? missionVariantFor(saved.caseId, saved.seed).id }; setGame(resumed); setPanel('record'); setDispatchVisible(false); setScreen('game'); return } } catch { /* Private browser storage can fail. */ } setMode('carreira'); startAssigned() }
-  const finish = async (destination: Destination, hypothesis: string, rationale: string) => { if (!game) return; const baseReport = evaluateOutcome(game, destination, hypothesis, rationale, fictionalTransitSeconds(destination, career)); const finalReport = applyCareerModifiers(baseReport, career); const operation = specialOperationFor(career, game.caseId, game.seed); const reward = awardCareer(career, finalReport, game.caseId, missionVariantById(game.missionVariantId).creditBonus, operation); const completed = { ...game, status: 'completed' as const }; setGame(completed); setCareer(reward.profile); setCareerReward(reward); setNarrativeEvent(reward.narrativeEvent ?? null); setReport(finalReport); setScreen('report'); try { await saveReport(completed, finalReport); await clearCheckpoint() } catch { /* Gameplay works without persistence. */ } }
+  const finish = async (destination: Destination, hypothesis: string, rationale: string) => { if (!game) return; const baseReport = evaluateOutcome(game, destination, hypothesis, rationale, fictionalTransitSeconds(destination, career)); const finalReport = applyCareerModifiers(baseReport, career); const operation = specialOperationFor(career, game.caseId, game.seed); const reward = awardCareer(career, finalReport, game.caseId, missionVariantById(game.missionVariantId).creditBonus, operation); const completed = { ...game, status: 'completed' as const }; setGame(completed); setCareer(reward.profile); setCareerReward(reward); setNarrativeEvent(reward.narrativeEvent ?? null); setSeasonClosing(reward.seasonClosing ?? null); setReport(finalReport); setScreen('report'); playActionCue('report', finalReport.score >= 600 ? 'success' : 'warning', volume); try { await saveReport(completed, finalReport); await clearCheckpoint() } catch { /* Gameplay works without persistence. */ } }
   const buyUpgrade = (upgradeId: UpgradeId) => { const next = purchaseUpgrade(career, upgradeId); if (!next) return false; setCareer(next); return true }
   const selectLivery = (liveryId: LiveryId) => { const livery = liveryFor(liveryId); if (!liveryIsUnlocked(career, livery)) return false; setCareer((current) => ({ ...current, liveryId })); return true }
+  const selectVehicle = (vehicleModelId: VehicleModelId) => { const vehicle = vehicleFor(vehicleModelId); if (!vehicleIsUnlocked(career, vehicle)) return false; setCareer((current) => ({ ...current, vehicleModelId })); return true }
   const selectServiceProfile = (serviceProfileId: ServiceProfileId) => { const service = serviceProfileFor(serviceProfileId); if (career.xp < service.unlockXp) return false; setCareer((current) => ({ ...current, serviceProfileId })); return true }
   const certify = (moduleId: string) => setCareer((current) => current.certifications.includes(moduleId) ? current : { ...current, certifications: [...current.certifications, moduleId] })
 
   if (screen === 'home') return <Home profile={career} safetyAcknowledged={safetyAcknowledged} onAcknowledgeSafety={() => setSafetyAcknowledged(true)} onStart={() => { setMode('carreira'); startAssigned() }} onContinue={continueCareer} onSettings={() => setScreen('settings')} onCareer={() => setScreen('career')} />
   if (screen === 'settings') return <Settings volume={volume} onVolume={setVolume} onBack={() => setScreen('home')} />
-  if (screen === 'career') return <CareerScreen profile={career} onBuy={buyUpgrade} onSelectLivery={selectLivery} onSelectService={selectServiceProfile} onLearning={() => setScreen('learning')} onBack={() => setScreen(game?.status === 'active' ? 'game' : 'home')} />
+  if (screen === 'career') return <CareerScreen profile={career} onBuy={buyUpgrade} onSelectLivery={selectLivery} onSelectVehicle={selectVehicle} onSelectService={selectServiceProfile} onLearning={() => setScreen('learning')} onBack={() => setScreen(game?.status === 'active' ? 'game' : 'home')} />
   if (screen === 'learning') return <LearningScreen profile={career} onCertify={certify} onBack={() => setScreen('career')} />
-  if (screen === 'report' && report && game && scenario) return <Report state={game} scenario={scenario} report={report} reward={careerReward} narrativeEvent={narrativeEvent} onDismissNarrative={() => setNarrativeEvent(null)} onRetry={() => start(game.caseId, game.seed)} onNew={startAssigned} onHome={() => setScreen('home')} />
+  if (screen === 'report' && report && game && scenario) return <Report state={game} scenario={scenario} report={report} reward={careerReward} narrativeEvent={narrativeEvent} seasonClosing={seasonClosing} onDismissNarrative={() => setNarrativeEvent(null)} onDismissSeason={() => setSeasonClosing(null)} onRetry={() => start(game.caseId, game.seed)} onNew={startAssigned} onHome={() => setScreen('home')} />
   if (!game || !scenario) return null
   const variant = missionVariantById(game.missionVariantId)
   const specialOperation = specialOperationFor(career, game.caseId, game.seed)
   const openFinish = (destination: Destination) => { setQuickDestination(destination); setPanel('finish') }
-  return <main className={`game-shell livery-${career.liveryId}`}>
+  return <main className={`game-shell livery-${career.liveryId} vehicle-${career.vehicleModelId}`}>
     <header className="game-header">
       <button className="brand-button" onClick={() => setScreen('home')} aria-label="Encerrar visualização e voltar ao início"><span>VALE</span> RESCUE <small>PLANTÃO / {mode.toUpperCase()}</small></button>
       <div className="case-chip"><b>{scenario.priority}</b><span>{scenario.id} · {variant.title}</span></div>
@@ -91,18 +93,18 @@ function App() {
         <nav className="scene-tool-dock" aria-label="Controles do atendimento">
           <Tool label="Prontuário" icon="▤" active={panel === 'record'} onClick={() => setPanel('record')} /><Tool label="Liberar vítima" icon="⌂" active={panel === 'finish' && quickDestination === 'discharge'} color="green" onClick={() => openFinish('discharge')} /><Tool label="Transportar" icon="➜" active={panel === 'finish' && quickDestination === 'hospital'} color="coral" onClick={() => openFinish('hospital')} />
           <Tool label="Avaliar" icon="⌕" active={panel === 'research'} color="mint" onClick={() => setPanel('research')} /><Tool label="Procedimentos" icon="✦" active={panel === 'actions'} color="coral" onClick={() => setPanel('actions')} /><Tool label="Medicamentos" icon="◈" active={panel === 'meds'} color="blue" onClick={() => setPanel('meds')} />
-          <Tool label={`Compressão · ${game.compressions}`} icon="↡" color="red" onClick={() => runResult(registerCompression(game))} /><Tool label="Desfibrilador" icon="ϟ" active={panel === 'defib'} color="amber" onClick={() => setPanel('defib')} /><Tool label="Ventilação" icon="≋" active={panel === 'ventilation'} color="cyan" onClick={() => setPanel('ventilation')} /><Tool label="Infusão" icon="⌇" active={panel === 'infusion'} color="purple" onClick={() => setPanel('infusion')} /><Tool label="Registro" icon="☷" active={panel === 'log'} onClick={() => setPanel('log')} />
+          <Tool label={`Compressão · ${game.compressions}`} icon="↡" color="red" onClick={() => runResult(registerCompression(game), 'compression')} /><Tool label="Desfibrilador" icon="ϟ" active={panel === 'defib'} color="amber" onClick={() => setPanel('defib')} /><Tool label="Ventilação" icon="≋" active={panel === 'ventilation'} color="cyan" onClick={() => setPanel('ventilation')} /><Tool label="Infusão" icon="⌇" active={panel === 'infusion'} color="purple" onClick={() => setPanel('infusion')} /><Tool label="Registro" icon="☷" active={panel === 'log'} onClick={() => setPanel('log')} />
         </nav>
       </PatientScene>
       <section className={`command-panel panel-${panel}`} aria-live="polite">
         <PanelTitle panel={panel} scenario={scenario.title} />
         {panel === 'record' && <RecordPanel state={game} />}
-        {panel === 'research' && <ResearchPanel state={game} onAction={(id) => runResult(investigate(game, id))} />}
-        {panel === 'actions' && <ActionsPanel state={game} onAction={(id) => runResult(intervene(game, id))} />}
-        {panel === 'meds' && <MedicationPanel state={game} pending={pendingMedication} onChoose={setPendingMedication} onConfirm={(id) => { setPendingMedication(null); runResult(administerMedication(game, id)) }} />}
-        {panel === 'defib' && <DefibPanel state={game} onAction={(step) => runResult(defibrillate(game, step))} />}
-        {panel === 'ventilation' && <VentilationPanel state={game} onAction={(step) => runResult(setVentilation(game, step))} />}
-        {panel === 'infusion' && <InfusionPanel state={game} onAction={() => runResult(startInfusion(game))} />}
+        {panel === 'research' && <ResearchPanel state={game} onAction={(id) => runResult(investigate(game, id), 'scan')} />}
+        {panel === 'actions' && <ActionsPanel state={game} onAction={(id) => runResult(intervene(game, id), 'tool')} />}
+        {panel === 'meds' && <MedicationPanel state={game} pending={pendingMedication} onChoose={setPendingMedication} onConfirm={(id) => { setPendingMedication(null); runResult(administerMedication(game, id), 'medication') }} />}
+        {panel === 'defib' && <DefibPanel state={game} onAction={(step) => runResult(defibrillate(game, step), 'defib')} />}
+        {panel === 'ventilation' && <VentilationPanel state={game} onAction={(step) => runResult(setVentilation(game, step), 'ventilation')} />}
+        {panel === 'infusion' && <InfusionPanel state={game} onAction={() => runResult(startInfusion(game), 'infusion')} />}
         {panel === 'log' && <LogPanel state={game} />}
         {panel === 'finish' && <FinishPanel key={quickDestination} initialDestination={quickDestination} transitForDestination={(destination) => fictionalTransitSeconds(destination, career)} onFinish={finish} />}
         {feedback && <div className={`feedback feedback-${feedback.tone}`}><b>{feedback.code.replaceAll('_', ' ')}</b><span>{feedback.outcome}</span></div>}
@@ -118,7 +120,7 @@ function Home({ profile, safetyAcknowledged, onAcknowledgeSafety, onStart, onCon
   const rank = rankFor(profile.xp)
   const next = nextRankFor(profile.xp)
   const season = seasonFor(profile.missionsCompleted)
-  return <main className={`home-screen livery-${profile.liveryId}`}>
+  return <main className={`home-screen livery-${profile.liveryId} vehicle-${profile.vehicleModelId}`}>
     <img className="home-cinematic" src={homeAsset('campaign-nightshift-v1.png')} alt="Ambulância ficcional em uma noite chuvosa" />
     <div className="home-ambient" />
     <header className="home-header"><div className="home-brand"><span>VALE</span> RESCUE <small>UNIDADE 07 · TURNO NOTURNO</small></div><button className="home-career-button" onClick={onCareer}><span>CARREIRA</span><b>{rank.name}</b><small>◈ {profile.credits} créditos</small></button></header>
@@ -129,7 +131,7 @@ function Home({ profile, safetyAcknowledged, onAcknowledgeSafety, onStart, onCon
   </main>
 }
 function SafetyNotice({ onAcknowledge }: { onAcknowledge: () => void }) { return <section className="safety-overlay" role="dialog" aria-modal="true" aria-labelledby="safety-title"><div className="safety-card"><p className="eyebrow">AVISO OBRIGATÓRIO · SIMULAÇÃO</p><h2 id="safety-title">Não use este jogo em uma emergência real.</h2><p>Vale Rescue é uma experiência ficcional de treinamento. Não substitui formação profissional, supervisão, protocolos locais, direção médica ou avaliação de uma pessoa real.</p><p>Nomes de medicamentos, equipamentos e protocolos aparecem somente como elementos de simulação: não há doses, quantidades, instruções operacionais ou autorização para uso real.</p><p className="safety-emergency">Em uma emergência real, acione o serviço de urgência local e siga profissionais habilitados.</p><button className="primary" onClick={onAcknowledge}>Entendi — entrar na Central</button><small>Escopo profissional, equipe, recursos e medicamentos variam conforme serviço, jurisdição e autorização clínica.</small></div></section> }
-function CareerScreen({ profile, onBuy, onSelectLivery, onSelectService, onLearning, onBack }: { profile: CareerProfile; onBuy: (id: UpgradeId) => boolean; onSelectLivery: (id: LiveryId) => boolean; onSelectService: (id: ServiceProfileId) => boolean; onLearning: () => void; onBack: () => void }) {
+function CareerScreen({ profile, onBuy, onSelectLivery, onSelectVehicle, onSelectService, onLearning, onBack }: { profile: CareerProfile; onBuy: (id: UpgradeId) => boolean; onSelectLivery: (id: LiveryId) => boolean; onSelectVehicle: (id: VehicleModelId) => boolean; onSelectService: (id: ServiceProfileId) => boolean; onLearning: () => void; onBack: () => void }) {
   const rank = rankFor(profile.xp)
   const next = nextRankFor(profile.xp)
   const [notice, setNotice] = useState('')
@@ -141,6 +143,7 @@ function CareerScreen({ profile, onBuy, onSelectLivery, onSelectService, onLearn
     <CampaignBoard profile={profile} />
     <SeasonBoard profile={profile} />
     <LiveryBay profile={profile} onSelect={(id) => setNotice(onSelectLivery(id) ? 'Identidade visual aplicada à Unidade 07.' : 'Este acabamento ainda requer um marco de carreira.')} />
+    <VehicleBay profile={profile} onSelect={(id) => setNotice(onSelectVehicle(id) ? 'Modelo visual aplicado à Unidade 07.' : 'Este modelo ainda requer progressão de carreira.')} />
     <CareerHistory profile={profile} history={history} />
     <section className="academy-launch"><div><span>PROTOCOLOS DE MISSÃO</span><b>Valide a leitura do cenário e desbloqueie novos tipos de ocorrência.</b><small>{profile.certifications.length} validação(ões) concluída(s)</small></div><button onClick={onLearning}>Abrir protocolos</button></section>
     <ServiceProfileBay profile={profile} onSelect={(id) => setNotice(onSelectService(id) ? 'Contrato de unidade preparado para a próxima missão.' : 'Este contrato ainda requer mais XP.')} />
@@ -162,6 +165,10 @@ function SeasonBoard({ profile }: { profile: CareerProfile }) {
 }
 function LiveryBay({ profile, onSelect }: { profile: CareerProfile; onSelect: (id: LiveryId) => void }) {
   return <section className="livery-bay"><div className="livery-heading"><div><p className="eyebrow">IDENTIDADE DA UNIDADE</p><h2>Acabamentos da garagem</h2></div><small>Escolhas puramente cosméticas; não alteram recursos, casos, tempo ou pontuação.</small></div><div className="livery-grid">{CAREER_LIVERIES.map((livery) => { const selected = profile.liveryId === livery.id; const unlocked = liveryIsUnlocked(profile, livery); const requirement = livery.requiredMilestone ? CAREER_MILESTONES.find((milestone) => milestone.id === livery.requiredMilestone) : undefined; return <button key={livery.id} className={`livery-card livery-${livery.id} ${selected ? 'selected' : ''} ${unlocked ? '' : 'locked'}`} disabled={!unlocked} onClick={() => onSelect(livery.id)}><span className="livery-icon">{livery.icon}</span><div><b>{livery.name}</b><p>{livery.description}</p><small>{unlocked ? livery.tag : `Requer: ${requirement?.name ?? livery.tag}`}</small></div><em>{selected ? 'em uso' : unlocked ? 'aplicar' : 'bloqueado'}</em></button> })}</div><p className="livery-boundary">A identidade é ficcional e visual. Ela não representa configuração ou autorização de ambulância real.</p></section>
+}
+
+function VehicleBay({ profile, onSelect }: { profile: CareerProfile; onSelect: (id: VehicleModelId) => void }) {
+  return <section className="vehicle-bay"><div className="vehicle-heading"><div><p className="eyebrow">HANGAR VISUAL</p><h2>Modelos da Unidade</h2></div><small>São variações de cabine e HUD para o jogo. Não representam veículo, equipamento ou credencial reais.</small></div><div className="vehicle-grid">{CAREER_VEHICLES.map((vehicle) => { const selected = profile.vehicleModelId === vehicle.id; const unlocked = vehicleIsUnlocked(profile, vehicle); const requirement = vehicle.requiredMilestone ? CAREER_MILESTONES.find((milestone) => milestone.id === vehicle.requiredMilestone)?.name : vehicle.requiredXp ? `${vehicle.requiredXp} XP` : vehicle.requiredOperations ? `${vehicle.requiredOperations} operações especiais` : vehicle.tag; return <button key={vehicle.id} className={`vehicle-card vehicle-${vehicle.id} ${selected ? 'selected' : ''} ${unlocked ? '' : 'locked'}`} disabled={!unlocked} onClick={() => onSelect(vehicle.id)}><span className="vehicle-icon">{vehicle.icon}</span><div><b>{vehicle.name}</b><p>{vehicle.description}</p><small>{unlocked ? vehicle.tag : `Requer: ${requirement}`}</small></div><em>{selected ? 'em uso' : unlocked ? 'aplicar' : 'bloqueado'}</em></button> })}</div><p className="vehicle-boundary">Modelos são uma escolha visual local, sem impacto em pontuação, velocidade, recursos ou conduta real.</p></section>
 }
 function CareerHistory({ profile, history }: { profile: CareerProfile; history: Array<{ state: GameState; report: ScoreReport }> }) {
   const average = history.length ? Math.round(history.reduce((total, item) => total + item.report.score, 0) / history.length) : 0
@@ -216,7 +223,7 @@ function FinishPanel({ initialDestination, transitForDestination, onFinish }: { 
 function Step({ label, done, danger, onClick }: { label: string; done?: boolean; danger?: boolean; onClick: () => void }) { return <button className={`step ${done ? 'done' : ''} ${danger ? 'danger' : ''}`} onClick={onClick}>{done ? '✓ ' : ''}{label}</button> }
 function Info({ label, value }: { label: string; value: string }) { return <div className="info"><span>{label}</span><p>{value}</p></div> }
 function Tool({ label, icon, active, color, onClick }: { label: string; icon: string; active?: boolean; color?: string; onClick: () => void }) { return <button title={label} aria-label={label} aria-pressed={active} className={`tool ${active ? 'active' : ''} ${color ?? ''}`} onClick={onClick}><span>{icon}</span><small>{label}</small></button> }
-function Report({ state, scenario, report, reward, narrativeEvent, onDismissNarrative, onRetry, onNew, onHome }: { state: GameState; scenario: (typeof CASES)[CaseId]; report: ScoreReport; reward: CareerReward | null; narrativeEvent: CareerNarrativeEvent | null; onDismissNarrative: () => void; onRetry: () => void; onNew: () => void; onHome: () => void }) {
+function Report({ state, scenario, report, reward, narrativeEvent, seasonClosing, onDismissNarrative, onDismissSeason, onRetry, onNew, onHome }: { state: GameState; scenario: (typeof CASES)[CaseId]; report: ScoreReport; reward: CareerReward | null; narrativeEvent: CareerNarrativeEvent | null; seasonClosing: CareerSeason | null; onDismissNarrative: () => void; onDismissSeason: () => void; onRetry: () => void; onNew: () => void; onHome: () => void }) {
   const variant = missionVariantById(state.missionVariantId)
   return <main className="report-screen"><section className="report-card">
     <header><div><p className="eyebrow">RELATÓRIO LOCAL · {scenario.id} · {variant.title.toUpperCase()}</p><h1>{scenario.title}</h1><p>{report.verdict}</p><small className="report-transit">{report.transportSeconds ? `Deslocamento ficcional: ${asTime(report.transportSeconds)}` : 'Sem deslocamento de frota'}</small></div><div className="score"><strong>{report.score}</strong><span>/ 1000</span><small>+{report.xp} XP</small></div></header>
@@ -226,9 +233,10 @@ function Report({ state, scenario, report, reward, narrativeEvent, onDismissNarr
     <div className="score-bars">{report.dimensions.map((item) => <div key={item.label}><span>{item.label}<b>{item.value}/{item.max}</b></span><i><em style={{ width: `${(item.value / item.max) * 100}%` }} /></i></div>)}</div>
     <div className="report-columns"><section><h2>Leitura do cenário</h2><p>{scenario.summary}</p><ul>{report.notes.map((note) => <li key={note}>{note}</li>)}</ul></section><section><h2>Linha do tempo</h2><div className="report-log">{state.actionLog.slice(-8).map((item, index) => <p key={`${item.code}-${index}`}><time>{asTime(item.at)}</time>{item.outcome}</p>)}</div></section></div>
     <footer><button onClick={onHome}>Encerrar plantão</button><button onClick={onRetry}>Reiniciar mesma seed</button><button className="primary" onClick={onNew}>Nova missão</button></footer><p className="report-disclaimer">Resultado de jogo simulado; não representa avaliação, diagnóstico ou conduta médica real.</p>
-  </section>{narrativeEvent && <NarrativeTransmission event={narrativeEvent} onClose={onDismissNarrative} />}</main>
+  </section>{seasonClosing ? <SeasonClosingSequence season={seasonClosing} onClose={onDismissSeason} /> : narrativeEvent && <NarrativeTransmission event={narrativeEvent} onClose={onDismissNarrative} />}</main>
 }
 function NarrativeTransmission({ event, onClose }: { event: CareerNarrativeEvent; onClose: () => void }) { return <section className="narrative-overlay" role="dialog" aria-modal="true" aria-label="Transmissão da Central"><div className="narrative-card"><div className="narrative-scan" aria-hidden="true"><i /><i /><i /></div><span>{event.icon} {event.channel}</span><h2>{event.title}</h2><p>{event.body}</p><small>{event.signoff}</small><button className="primary" onClick={onClose}>Arquivar transmissão</button><em>EVENTO FICCIONAL DE CARREIRA · SEM IMPACTO FORA DO JOGO</em></div></section> }
+function SeasonClosingSequence({ season, onClose }: { season: CareerSeason; onClose: () => void }) { return <section className="season-closing-overlay" role="dialog" aria-modal="true" aria-label="Temporada concluída"><div className="season-closing-card"><div className="season-closing-rings" aria-hidden="true"><i /><i /><i /></div><span>{season.icon} {season.code} · ARQUIVO ENCERRADO</span><h2>{season.closureTitle ?? `${season.name} concluída`}</h2><p>{season.closureBody ?? 'A Central atualizou a rota da Unidade 07 para o próximo ciclo ficcional.'}</p><small>PRÓXIMA ROTA DISPONÍVEL NA CENTRAL</small><button className="primary" onClick={onClose}>Abrir próxima temporada</button><em>CENA DE CARREIRA FICCIONAL · SEM IMPACTO FORA DO JOGO</em></div></section> }
 function playSceneAmbience(theme: SceneTheme, volume: number) {
   if (!volume || typeof window === 'undefined' || !window.AudioContext) return
   try {
@@ -252,5 +260,30 @@ function playSceneAmbience(theme: SceneTheme, volume: number) {
     return () => { master.gain.setTargetAtTime(0.0001, context.currentTime, .05); window.setTimeout(() => { try { base.stop(); detail.stop(); void context.close() } catch { /* Audio nodes may already be closed. */ } }, 130) }
   } catch { return }
 }
-function tone(kind: LogEntry['tone'], volume: number) { if (!volume || typeof window === 'undefined' || !window.AudioContext) return; const context = new AudioContext(); const oscillator = context.createOscillator(); const gain = context.createGain(); oscillator.frequency.value = kind === 'danger' ? 160 : kind === 'success' ? 560 : 330; gain.gain.value = Math.min(volume / 1000, 0.07); oscillator.connect(gain); gain.connect(context.destination); oscillator.start(); oscillator.stop(context.currentTime + 0.06); oscillator.onended = () => void context.close() }
+type SoundCue = 'feedback' | 'scan' | 'tool' | 'medication' | 'defib' | 'ventilation' | 'infusion' | 'compression' | 'report'
+function playActionCue(cue: SoundCue, outcome: LogEntry['tone'], volume: number) {
+  if (!volume || typeof window === 'undefined' || !window.AudioContext) return
+  try {
+    const context = new AudioContext()
+    const notes: Record<SoundCue, readonly number[]> = { feedback: [330], scan: [420, 610], tool: [250, 310], medication: [360, 510], defib: [190, 130], ventilation: [260, 340], infusion: [310, 430], compression: [118], report: [420, 590, 740] }
+    const modifier = outcome === 'danger' ? .72 : outcome === 'warning' ? .86 : outcome === 'success' ? 1.08 : 1
+    const master = context.createGain()
+    master.gain.value = Math.min(volume / 100 * .05, .05)
+    master.connect(context.destination)
+    notes[cue].forEach((note, index) => {
+      const oscillator = context.createOscillator()
+      const gain = context.createGain()
+      const start = context.currentTime + index * .075
+      oscillator.type = cue === 'compression' || cue === 'defib' ? 'triangle' : 'sine'
+      oscillator.frequency.setValueAtTime(note * modifier, start)
+      if (cue === 'scan') oscillator.frequency.exponentialRampToValueAtTime(note * modifier * 1.12, start + .06)
+      gain.gain.setValueAtTime(.0001, start)
+      gain.gain.exponentialRampToValueAtTime(1, start + .008)
+      gain.gain.exponentialRampToValueAtTime(.0001, start + .065)
+      oscillator.connect(gain); gain.connect(master); oscillator.start(start); oscillator.stop(start + .07)
+    })
+    void context.resume().catch(() => undefined)
+    window.setTimeout(() => void context.close(), notes[cue].length * 80 + 160)
+  } catch { /* Browsers may deny optional game audio. */ }
+}
 export default App
