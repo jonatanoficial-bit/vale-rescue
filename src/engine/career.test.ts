@@ -42,6 +42,7 @@ describe('career progression', () => {
     expect(createCareerProfile().serviceProfileId).toBe('samu_usb')
     expect(createCareerProfile().liveryId).toBe('vale_standard')
     expect(createCareerProfile().completedOperations).toEqual([])
+    expect(createCareerProfile().seenNarrativeEvents).toEqual([])
     expect(normalizeCareerProfile({ serviceProfileId: 'paramedic_response' }).serviceProfileId).toBe('paramedic_response')
     expect(normalizeCareerProfile({ serviceProfileId: 'unsupported' as never }).serviceProfileId).toBe('samu_usb')
     expect(normalizeCareerProfile({ liveryId: 'nightwatch' }).liveryId).toBe('nightwatch')
@@ -97,5 +98,14 @@ describe('career progression', () => {
     expect(reward.profile.completedOperations).toContain(operation.id)
     expect(reward.creditsEarned).toBeGreaterThan(operation.creditReward)
     expect(awardCareer(reward.profile, report, 'CASE-003', 0, operation).operationReward).toBeUndefined()
+  })
+
+  it('records each season transmission once when its mission threshold is crossed', () => {
+    const first = awardCareer(createCareerProfile(), report, 'CASE-001')
+    expect(first.narrativeEvent?.id).toBe('first_frequency')
+    expect(first.profile.seenNarrativeEvents).toContain('first_frequency')
+    expect(awardCareer(first.profile, report, 'CASE-003').narrativeEvent).toBeUndefined()
+    const crosswindProfile = { ...first.profile, missionsCompleted: 10 }
+    expect(awardCareer(crosswindProfile, report, 'CASE-004').narrativeEvent?.id).toBe('crosswind_signal')
   })
 })

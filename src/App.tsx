@@ -3,12 +3,12 @@ import './App.css'
 import { CASE_LIST, CASES, INTERVENTIONS, INVESTIGATIONS, MEDICATIONS } from './content/cases'
 import { LEARNING_MODULES } from './content/learning'
 import { CLINICAL_REFERENCE } from './content/protocols'
-import { missionVariantById, missionVariantFor } from './content/missionVariants'
+import { missionVariantById, missionVariantFor, type SceneTheme } from './content/missionVariants'
 import { SERVICE_PROFILES, serviceProfileFor } from './content/serviceProfiles'
 import { Monitor } from './components/Monitor'
 import { PatientScene } from './components/PatientScene'
 import { applyCareerModifiers, awardCareer, CAREER_LIVERIES, CAREER_MILESTONES, CAREER_OPERATIONS, CAREER_SEASONS, CAREER_UPGRADES, createCareerProfile, dispatchableCases, fictionalTransitSeconds, liveryFor, liveryIsUnlocked, milestoneProgress, nextRankFor, normalizeCareerProfile, purchaseUpgrade, rankFor, seasonFor, seasonProgress, selectCareerCase, specialOperationFor } from './engine/career'
-import type { CareerProfile, CareerReward, LiveryId, UpgradeId } from './engine/career'
+import type { CareerNarrativeEvent, CareerProfile, CareerReward, LiveryId, UpgradeId } from './engine/career'
 import { advanceTime, administerMedication, createCaseState, defibrillate, evaluateOutcome, investigate, intervene, registerCompression, setVentilation, startInfusion } from './engine/clinical'
 import type { ActionResult, CaseId, Destination, GameState, LogEntry, ScoreReport, ServiceProfileId } from './engine/types'
 import { clearCheckpoint, loadCareerProfile, loadCheckpoint, loadHistory, saveCareerProfile, saveCheckpoint, saveReport } from './services/persistence'
@@ -34,7 +34,10 @@ function App() {
   const [career, setCareer] = useState<CareerProfile>(createCareerProfile)
   const [careerLoaded, setCareerLoaded] = useState(false)
   const [careerReward, setCareerReward] = useState<CareerReward | null>(null)
+  const [narrativeEvent, setNarrativeEvent] = useState<CareerNarrativeEvent | null>(null)
   const [safetyAcknowledged, setSafetyAcknowledged] = useState(false)
+  const activeCaseId = game?.caseId
+  const activeSeed = game?.seed
 
   useEffect(() => {
     if (!game || game.status !== 'active' || game.speed === 0) return
@@ -48,14 +51,18 @@ function App() {
     return () => { active = false }
   }, [])
   useEffect(() => { if (careerLoaded) void saveCareerProfile(career).catch(() => undefined) }, [career, careerLoaded])
+  useEffect(() => {
+    if (!activeCaseId || activeSeed === undefined || screen !== 'game' || dispatchVisible) return
+    return playSceneAmbience(missionVariantFor(activeCaseId, activeSeed).visualTheme, volume)
+  }, [activeCaseId, activeSeed, screen, dispatchVisible, volume])
 
   const scenario = game ? CASES[game.caseId] : null
   const enterFullscreen = () => { if (typeof document !== 'undefined' && !document.fullscreenElement) void document.documentElement.requestFullscreen?.().catch(() => undefined) }
   const runResult = (result: ActionResult) => { setGame(result.nextState); setFeedback(result.feedback); tone(result.feedback.tone, volume) }
-  const start = (caseId: CaseId, seed?: number) => { const next = createCaseState(caseId, seed, career.serviceProfileId); setGame(next); setFeedback(next.actionLog.at(-1) ?? null); setReport(null); setCareerReward(null); setPanel('record'); setQuickDestination('hospital'); setMonitorExpanded(false); setDispatchVisible(true); setScreen('game') }
+  const start = (caseId: CaseId, seed?: number) => { const next = createCaseState(caseId, seed, career.serviceProfileId); setGame(next); setFeedback(next.actionLog.at(-1) ?? null); setReport(null); setCareerReward(null); setNarrativeEvent(null); setPanel('record'); setQuickDestination('hospital'); setMonitorExpanded(false); setDispatchVisible(true); setScreen('game') }
   const startAssigned = () => { const available = CASE_LIST.filter((item) => (item.unlockXp ?? 0) <= career.xp && (!item.requiredCertification || career.certifications.includes(item.requiredCertification))); start(selectCareerCase(dispatchableCases(available, career), career).id) }
   const continueCareer = async () => { try { const saved = await loadCheckpoint(); if (saved && saved.status === 'active') { const resumed = { ...saved, serviceProfileId: saved.serviceProfileId ?? career.serviceProfileId, missionVariantId: saved.missionVariantId ?? missionVariantFor(saved.caseId, saved.seed).id }; setGame(resumed); setPanel('record'); setDispatchVisible(false); setScreen('game'); return } } catch { /* Private browser storage can fail. */ } setMode('carreira'); startAssigned() }
-  const finish = async (destination: Destination, hypothesis: string, rationale: string) => { if (!game) return; const baseReport = evaluateOutcome(game, destination, hypothesis, rationale, fictionalTransitSeconds(destination, career)); const finalReport = applyCareerModifiers(baseReport, career); const operation = specialOperationFor(career, game.caseId, game.seed); const reward = awardCareer(career, finalReport, game.caseId, missionVariantById(game.missionVariantId).creditBonus, operation); const completed = { ...game, status: 'completed' as const }; setGame(completed); setCareer(reward.profile); setCareerReward(reward); setReport(finalReport); setScreen('report'); try { await saveReport(completed, finalReport); await clearCheckpoint() } catch { /* Gameplay works without persistence. */ } }
+  const finish = async (destination: Destination, hypothesis: string, rationale: string) => { if (!game) return; const baseReport = evaluateOutcome(game, destination, hypothesis, rationale, fictionalTransitSeconds(destination, career)); const finalReport = applyCareerModifiers(baseReport, career); const operation = specialOperationFor(career, game.caseId, game.seed); const reward = awardCareer(career, finalReport, game.caseId, missionVariantById(game.missionVariantId).creditBonus, operation); const completed = { ...game, status: 'completed' as const }; setGame(completed); setCareer(reward.profile); setCareerReward(reward); setNarrativeEvent(reward.narrativeEvent ?? null); setReport(finalReport); setScreen('report'); try { await saveReport(completed, finalReport); await clearCheckpoint() } catch { /* Gameplay works without persistence. */ } }
   const buyUpgrade = (upgradeId: UpgradeId) => { const next = purchaseUpgrade(career, upgradeId); if (!next) return false; setCareer(next); return true }
   const selectLivery = (liveryId: LiveryId) => { const livery = liveryFor(liveryId); if (!liveryIsUnlocked(career, livery)) return false; setCareer((current) => ({ ...current, liveryId })); return true }
   const selectServiceProfile = (serviceProfileId: ServiceProfileId) => { const service = serviceProfileFor(serviceProfileId); if (career.xp < service.unlockXp) return false; setCareer((current) => ({ ...current, serviceProfileId })); return true }
@@ -65,7 +72,7 @@ function App() {
   if (screen === 'settings') return <Settings volume={volume} onVolume={setVolume} onBack={() => setScreen('home')} />
   if (screen === 'career') return <CareerScreen profile={career} onBuy={buyUpgrade} onSelectLivery={selectLivery} onSelectService={selectServiceProfile} onLearning={() => setScreen('learning')} onBack={() => setScreen(game?.status === 'active' ? 'game' : 'home')} />
   if (screen === 'learning') return <LearningScreen profile={career} onCertify={certify} onBack={() => setScreen('career')} />
-  if (screen === 'report' && report && game && scenario) return <Report state={game} scenario={scenario} report={report} reward={careerReward} onRetry={() => start(game.caseId, game.seed)} onNew={startAssigned} onHome={() => setScreen('home')} />
+  if (screen === 'report' && report && game && scenario) return <Report state={game} scenario={scenario} report={report} reward={careerReward} narrativeEvent={narrativeEvent} onDismissNarrative={() => setNarrativeEvent(null)} onRetry={() => start(game.caseId, game.seed)} onNew={startAssigned} onHome={() => setScreen('home')} />
   if (!game || !scenario) return null
   const variant = missionVariantById(game.missionVariantId)
   const specialOperation = specialOperationFor(career, game.caseId, game.seed)
@@ -174,7 +181,7 @@ function LearningScreen({ profile, onCertify, onBack }: { profile: CareerProfile
   if (module) return <main className="learning-screen"><header className="learning-header"><button onClick={() => { setModuleId(null); setAnswers({}); setSubmitted(false) }}>Protocolos</button><div><p className="eyebrow">AHA/ILCOR 2025 · PROTOCOLO DE MISSÃO</p><h1>{module.title}</h1><p>{module.subtitle}</p></div></header><section className="learning-copy"><p>{CLINICAL_REFERENCE.detail}</p>{module.summary.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}<a href={CLINICAL_REFERENCE.ahaUrl} target="_blank" rel="noreferrer">{CLINICAL_REFERENCE.label} ↗</a><a href={module.sourceUrl} target="_blank" rel="noreferrer">Referência complementar do cenário: {module.sourceLabel}</a></section><form className="quiz-card" onSubmit={(event) => { event.preventDefault(); setSubmitted(true); if (score >= 4) onCertify(module.id) }}><header><div><span>VALIDAÇÃO DE MISSÃO</span><b>5 leituras · acesso: 4 acertos</b></div>{submitted && <strong className={score >= 4 ? 'pass' : 'fail'}>{score}/5 {score >= 4 ? '· ACESSO LIBERADO' : '· REVISE A REFERÊNCIA'}</strong>}</header>{module.questions.map((question, index) => <fieldset key={question.prompt}><legend>{index + 1}. {question.prompt}</legend>{question.choices.map((choice, choiceIndex) => <label key={choice}><input type="radio" name={`q${index}`} checked={answers[index] === choiceIndex} onChange={() => setAnswers({ ...answers, [index]: choiceIndex })} />{choice}</label>)}</fieldset>)}<button className="primary" type="submit">Validar leitura</button>{certified && <p className="quiz-certified">Validação concluída. Nova ocorrência disponível no próximo plantão.</p>}</form><p className="learning-disclaimer">AHA/ILCOR é a referência-base de RCP e suporte cardiorrespiratório do jogo. Não é autorização, prescrição, treinamento profissional ou decisão para uma pessoa real.</p></main>
   return <main className="learning-screen"><header className="learning-header"><button onClick={onBack}>Carreira</button><div><p className="eyebrow">PROTOCOLOS DA CENTRAL</p><h1>Trilhas de missão</h1><p>Consulte a referência, valide a leitura e amplie os cenários do jogo.</p></div></header><section className="learning-list">{LEARNING_MODULES.map((item) => { const unlocked = profile.xp >= item.requiredXp; const certified = profile.certifications.includes(item.id); return <article className={unlocked ? '' : 'locked'} key={item.id}><div><span>{certified ? '✓ VALIDADO' : unlocked ? 'DISPONÍVEL' : `REQUER ${item.requiredXp} XP`}</span><h2>{item.title}</h2><p>{item.subtitle}</p><small>Libera: {item.unlocks}</small></div><button disabled={!unlocked} onClick={() => setModuleId(item.id)}>{certified ? 'Revisar' : unlocked ? 'Consultar e validar' : 'Bloqueado'}</button></article>})}</section></main>
 }
-function Settings({ volume, onVolume, onBack }: { volume: number; onVolume: (value: number) => void; onBack: () => void }) { return <main className="settings-screen"><section className="settings-card"><p className="eyebrow">VALE RESCUE</p><h1>Configurações</h1><label>Volume de feedback <output>{volume}%</output><input aria-label="Volume de feedback" type="range" min="0" max="100" value={volume} onChange={(event) => onVolume(Number(event.target.value))} /></label><div className="setting-row"><span>Modo visual</span><b>2,5D original</b></div><div className="setting-row"><span>Salvamento</span><b>IndexedDB local</b></div><button className="primary" onClick={onBack}>Voltar</button></section></main> }
+function Settings({ volume, onVolume, onBack }: { volume: number; onVolume: (value: number) => void; onBack: () => void }) { return <main className="settings-screen"><section className="settings-card"><p className="eyebrow">VALE RESCUE</p><h1>Configurações</h1><label>Áudio ambiente e feedback <output>{volume}%</output><input aria-label="Áudio ambiente e feedback" type="range" min="0" max="100" value={volume} onChange={(event) => onVolume(Number(event.target.value))} /></label><div className="setting-row"><span>Som de cena</span><b>{volume ? 'Ambiente dinâmico' : 'Desligado'}</b></div><div className="setting-row"><span>Modo visual</span><b>2,5D original</b></div><div className="setting-row"><span>Salvamento</span><b>IndexedDB local</b></div><button className="primary" onClick={onBack}>Voltar</button></section></main> }
 function DispatchOverlay({ scenario, variant, operation, serviceName, onEnter }: { scenario: (typeof CASES)[CaseId]; variant: ReturnType<typeof missionVariantById>; operation: ReturnType<typeof specialOperationFor>; serviceName: string; onEnter: () => void }) { const portrait = scenario.patient.bodyPreset === 'marina' ? 'briefing-female-v1.png' : 'briefing-male-v1.png'; return <section className="dispatch-overlay" role="dialog" aria-modal="true" aria-label="Ficha inicial da ocorrência"><div className="dispatch-card"><div className="dispatch-signal"><i /><i /><i /></div><p className="eyebrow">CENTRAL DE REGULAÇÃO · FICHA INICIAL</p><div className="dispatch-id"><span>{scenario.priority}</span><b>{scenario.id} · {variant.title.toUpperCase()}</b></div><div className="dispatch-variant"><span>{variant.dispatchTag}</span><b>{variant.location}</b><small>{variant.atmosphere} · {variant.complication}</small><em>+{variant.creditBonus} créditos de contexto</em></div>{operation && <div className="dispatch-operation"><span>{operation.icon} {operation.dispatchTag}</span><b>{operation.name}</b><p>{operation.description}</p><small>Conclusão bem avaliada: ◈ {operation.creditReward} de carreira.</small></div>}<div className="dispatch-profile"><img src={`${import.meta.env.BASE_URL}assets/patients/${portrait}`} alt={`Retrato simulado de ${scenario.patient.name}`} /><div><p>VÍTIMA SIMULADA</p><h2>{scenario.patient.name}</h2><span>{scenario.patient.age} anos · {scenario.patient.gender}</span><strong>{scenario.title}</strong></div></div><p className="dispatch-copy">{scenario.dispatch}</p><div className="dispatch-history"><span>HISTÓRICO RELATADO</span><p>{scenario.history}</p><span>ACOMPANHANTE</span><p>{scenario.witness}</p></div><div className="dispatch-meta"><span>UNIDADE 07 · {serviceName.toUpperCase()}</span><span>MONITOR PRÉ-CONECTADO · CONFIGURAÇÃO VARIÁVEL</span></div><button className="primary" onClick={onEnter}>Iniciar atendimento <span>●</span></button><small>Foto, contexto e histórico são ficcionais. Ações incompatíveis mudam o estado e a pontuação do jogo.</small></div></section> }
 function PanelTitle({ panel, scenario }: { panel: Panel; scenario: string }) { const names: Record<Panel, string> = { record: 'Prontuário', research: 'Avaliação', actions: 'Procedimentos', meds: 'Medicamentos', defib: 'Desfibrilador', ventilation: 'Ventilação', infusion: 'Infusão', log: 'Diário da ocorrência', finish: 'Destino e relatório' }; return <div className="panel-title"><div><p>{scenario}</p><h2>{names[panel]}</h2></div><span className="panel-status">LOCAL</span></div> }
 function RecordPanel({ state }: { state: GameState }) {
@@ -209,7 +216,7 @@ function FinishPanel({ initialDestination, transitForDestination, onFinish }: { 
 function Step({ label, done, danger, onClick }: { label: string; done?: boolean; danger?: boolean; onClick: () => void }) { return <button className={`step ${done ? 'done' : ''} ${danger ? 'danger' : ''}`} onClick={onClick}>{done ? '✓ ' : ''}{label}</button> }
 function Info({ label, value }: { label: string; value: string }) { return <div className="info"><span>{label}</span><p>{value}</p></div> }
 function Tool({ label, icon, active, color, onClick }: { label: string; icon: string; active?: boolean; color?: string; onClick: () => void }) { return <button title={label} aria-label={label} aria-pressed={active} className={`tool ${active ? 'active' : ''} ${color ?? ''}`} onClick={onClick}><span>{icon}</span><small>{label}</small></button> }
-function Report({ state, scenario, report, reward, onRetry, onNew, onHome }: { state: GameState; scenario: (typeof CASES)[CaseId]; report: ScoreReport; reward: CareerReward | null; onRetry: () => void; onNew: () => void; onHome: () => void }) {
+function Report({ state, scenario, report, reward, narrativeEvent, onDismissNarrative, onRetry, onNew, onHome }: { state: GameState; scenario: (typeof CASES)[CaseId]; report: ScoreReport; reward: CareerReward | null; narrativeEvent: CareerNarrativeEvent | null; onDismissNarrative: () => void; onRetry: () => void; onNew: () => void; onHome: () => void }) {
   const variant = missionVariantById(state.missionVariantId)
   return <main className="report-screen"><section className="report-card">
     <header><div><p className="eyebrow">RELATÓRIO LOCAL · {scenario.id} · {variant.title.toUpperCase()}</p><h1>{scenario.title}</h1><p>{report.verdict}</p><small className="report-transit">{report.transportSeconds ? `Deslocamento ficcional: ${asTime(report.transportSeconds)}` : 'Sem deslocamento de frota'}</small></div><div className="score"><strong>{report.score}</strong><span>/ 1000</span><small>+{report.xp} XP</small></div></header>
@@ -219,7 +226,31 @@ function Report({ state, scenario, report, reward, onRetry, onNew, onHome }: { s
     <div className="score-bars">{report.dimensions.map((item) => <div key={item.label}><span>{item.label}<b>{item.value}/{item.max}</b></span><i><em style={{ width: `${(item.value / item.max) * 100}%` }} /></i></div>)}</div>
     <div className="report-columns"><section><h2>Leitura do cenário</h2><p>{scenario.summary}</p><ul>{report.notes.map((note) => <li key={note}>{note}</li>)}</ul></section><section><h2>Linha do tempo</h2><div className="report-log">{state.actionLog.slice(-8).map((item, index) => <p key={`${item.code}-${index}`}><time>{asTime(item.at)}</time>{item.outcome}</p>)}</div></section></div>
     <footer><button onClick={onHome}>Encerrar plantão</button><button onClick={onRetry}>Reiniciar mesma seed</button><button className="primary" onClick={onNew}>Nova missão</button></footer><p className="report-disclaimer">Resultado de jogo simulado; não representa avaliação, diagnóstico ou conduta médica real.</p>
-  </section></main>
+  </section>{narrativeEvent && <NarrativeTransmission event={narrativeEvent} onClose={onDismissNarrative} />}</main>
+}
+function NarrativeTransmission({ event, onClose }: { event: CareerNarrativeEvent; onClose: () => void }) { return <section className="narrative-overlay" role="dialog" aria-modal="true" aria-label="Transmissão da Central"><div className="narrative-card"><div className="narrative-scan" aria-hidden="true"><i /><i /><i /></div><span>{event.icon} {event.channel}</span><h2>{event.title}</h2><p>{event.body}</p><small>{event.signoff}</small><button className="primary" onClick={onClose}>Arquivar transmissão</button><em>EVENTO FICCIONAL DE CARREIRA · SEM IMPACTO FORA DO JOGO</em></div></section> }
+function playSceneAmbience(theme: SceneTheme, volume: number) {
+  if (!volume || typeof window === 'undefined' || !window.AudioContext) return
+  try {
+    const context = new AudioContext()
+    const tones: Record<SceneTheme, readonly [number, number]> = { rain: [74, 148], crowd: [92, 184], industrial: [58, 116], quiet: [72, 144], market: [108, 216], road: [64, 128], school: [86, 172], festival: [112, 224], blackout: [52, 104], dawn: [96, 192], warehouse: [61, 122], hillside: [67, 134], metro: [70, 140], heatwave: [84, 168], harbor: [56, 112], suburb: [76, 152], tunnel: [48, 96], park: [88, 176] }
+    const [baseFrequency, detailFrequency] = tones[theme]
+    const master = context.createGain()
+    const base = context.createOscillator()
+    const detail = context.createOscillator()
+    const filter = context.createBiquadFilter()
+    master.gain.value = Math.min(volume / 100 * 0.018, 0.018)
+    filter.type = 'lowpass'
+    filter.frequency.value = theme === 'rain' || theme === 'harbor' ? 420 : 620
+    base.type = 'sine'
+    detail.type = theme === 'industrial' || theme === 'tunnel' ? 'triangle' : 'sine'
+    base.frequency.value = baseFrequency
+    detail.frequency.value = detailFrequency
+    detail.detune.value = -7
+    base.connect(filter); detail.connect(filter); filter.connect(master); master.connect(context.destination)
+    base.start(); detail.start(); void context.resume().catch(() => undefined)
+    return () => { master.gain.setTargetAtTime(0.0001, context.currentTime, .05); window.setTimeout(() => { try { base.stop(); detail.stop(); void context.close() } catch { /* Audio nodes may already be closed. */ } }, 130) }
+  } catch { return }
 }
 function tone(kind: LogEntry['tone'], volume: number) { if (!volume || typeof window === 'undefined' || !window.AudioContext) return; const context = new AudioContext(); const oscillator = context.createOscillator(); const gain = context.createGain(); oscillator.frequency.value = kind === 'danger' ? 160 : kind === 'success' ? 560 : 330; gain.gain.value = Math.min(volume / 1000, 0.07); oscillator.connect(gain); gain.connect(context.destination); oscillator.start(); oscillator.stop(context.currentTime + 0.06); oscillator.onended = () => void context.close() }
 export default App

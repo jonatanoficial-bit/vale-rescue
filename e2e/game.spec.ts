@@ -34,6 +34,9 @@ test('inicia uma ocorrência e gera relatório', async ({ page }) => {
   await page.getByLabel(/justificativa/i).fill('Achados registrados na missão.')
   await page.getByRole('button', { name: /encerrar cenário/i }).click()
   await expect(page.getByText('/ 1000')).toBeVisible()
+  await expect(page.getByRole('dialog', { name: /transmissão da central/i })).toBeVisible()
+  await page.getByRole('button', { name: /arquivar transmissão/i }).click()
+  await expect(page.getByRole('button', { name: /nova missão/i })).toBeVisible()
 })
 
 test('abre a carreira e os protocolos de missão com bloqueio por XP', async ({ page }) => {
