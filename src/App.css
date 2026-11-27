@@ -267,6 +267,10 @@ button:hover { transform: translateY(-1px); }
 .dispatch-card::before { pointer-events: none; }
 .dispatch-card .primary { position: sticky; bottom: 0; margin-top: .35rem; border: 1px solid #92f6e9; box-shadow: 0 -10px 18px #06121fe8, 0 8px 22px #0008; }
 
+/* A Central mostra progresso de campanha, sem revelar decisões clínicas. */
+.home-campaign-route { display: grid; gap: .18rem; padding-top: .45rem; border-top: 1px solid #ffffff1b; }.home-campaign-route > span { color: #72e8d7; font: 700 .43rem 'DM Mono', monospace; letter-spacing: .11em; }.home-campaign-route b { color: #eefcfa; font-size: .57rem; line-height: 1.4; }.home-campaign-route small { color: #f1c973; font-size: .49rem; line-height: 1.35; }
+.dispatch-campaign { position: relative; z-index: 1; display: grid; gap: .22rem; margin: .7rem 0; padding: .56rem .65rem; border: 1px solid #66e6d858; border-left: 3px solid #69e5d2; background: linear-gradient(105deg, #123c44d8, #071722d8); }.dispatch-campaign > div { display: grid; gap: .12rem; }.dispatch-campaign span { color: #74ebd9; font: 700 .48rem 'DM Mono', monospace; letter-spacing: .12em; }.dispatch-campaign b { color: #ecfffc; font-size: .72rem; }.dispatch-campaign small { color: #f1ca72; font: .52rem 'DM Mono', monospace; line-height: 1.4; }
+
 /* A conclusão sempre aponta para a próxima missão, sem sugerir conduta dentro do cenário. */
 .campaign-continuity { display: grid; gap: .3rem; margin: 1rem 0 0; padding: .85rem .95rem; border: 1px solid #6ee4d27c; border-left: 3px solid #5be1cc; background: linear-gradient(110deg, #12463f, #0a1d2c 72%); box-shadow: inset 0 1px #d9fffa16; }
 .campaign-continuity > span { color: #72ead7; font: 700 .54rem 'DM Mono', monospace; letter-spacing: .12em; }
@@ -283,9 +287,10 @@ button:hover { transform: translateY(-1px); }
   .dispatch-overlay { align-items: start; padding: .35rem; }
   .dispatch-card { width: min(660px, 100%); max-height: calc(100dvh - .7rem); padding: .72rem .9rem; }
   .dispatch-signal { margin-bottom: .32rem; transform: scale(.72); transform-origin: left top; height: 20px; }.dispatch-card > .eyebrow { font-size: .43rem; }.dispatch-id { margin: .36rem 0; }.dispatch-id span { padding: .22rem .35rem; font-size: .48rem; }.dispatch-id b { font-size: .58rem; }.dispatch-card h2 { font-size: 1.1rem; }
-  .dispatch-variant, .dispatch-operation { gap: .1rem; margin: .42rem 0; padding: .42rem .5rem; }.dispatch-variant b { font-size: .72rem; }.dispatch-variant small, .dispatch-operation p { font-size: .54rem; }.dispatch-variant em, .dispatch-operation span, .dispatch-operation small { font-size: .43rem; }.dispatch-operation b { font-size: .64rem; }
+  .dispatch-variant, .dispatch-campaign, .dispatch-operation { gap: .1rem; margin: .42rem 0; padding: .42rem .5rem; }.dispatch-variant b { font-size: .72rem; }.dispatch-variant small, .dispatch-operation p { font-size: .54rem; }.dispatch-variant em, .dispatch-operation span, .dispatch-operation small, .dispatch-campaign span, .dispatch-campaign small { font-size: .43rem; }.dispatch-operation b, .dispatch-campaign b { font-size: .64rem; }
   .dispatch-profile { grid-template-columns: 52px 1fr; gap: .5rem; margin: .45rem 0; padding: .38rem; }.dispatch-profile img { width: 52px; }.dispatch-profile p { font-size: .38rem; }.dispatch-profile h2 { font-size: .9rem; }.dispatch-profile span, .dispatch-profile strong { font-size: .5rem; }.dispatch-profile strong { margin-top: .2rem; }
   .dispatch-copy { margin: .42rem 0; font-size: .59rem; line-height: 1.4; }.dispatch-history { gap: .1rem; padding: .4rem 0; }.dispatch-history span { font-size: .41rem; }.dispatch-history p { margin-bottom: .22rem; font-size: .53rem; line-height: 1.32; }.dispatch-meta { gap: .16rem; margin-bottom: .42rem; padding: .42rem 0; font-size: .45rem; }.dispatch-card .primary { min-height: 38px; margin-top: .12rem; padding: .55rem .7rem; font-size: .63rem; }.dispatch-card > small { margin-top: .42rem; font-size: .48rem; line-height: 1.35; }
 }
 
+@media (max-width: 720px) { .home-campaign-route { display: none; } }
 @media (max-width: 640px) { .campaign-continuity { padding: .72rem .78rem; }.campaign-continuity p { font-size: .62rem; }.campaign-continuity small { font-size: .48rem; } }

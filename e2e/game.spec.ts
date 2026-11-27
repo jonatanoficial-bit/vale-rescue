@@ -13,6 +13,7 @@ test('inicia uma ocorrência e gera relatório', async ({ page }) => {
   await expect(startMission).toHaveCSS('background-image', /linear-gradient/)
   await startMission.click()
   await expect(page.getByRole('dialog', { name: /ficha inicial da ocorrência/i })).toBeVisible()
+  await expect(page.getByLabel(/registro de campanha/i)).toContainText(/missão 01/i)
   await page.getByRole('button', { name: /iniciar atendimento/i }).click()
   await expect(page.locator('.command-panel')).toBeVisible()
   await expect(page.getByRole('button', { name: /prontuário/i })).toBeVisible()
@@ -38,6 +39,9 @@ test('inicia uma ocorrência e gera relatório', async ({ page }) => {
   await page.getByRole('button', { name: /arquivar transmissão/i }).click()
   await expect(page.getByRole('button', { name: /continuar campanha/i })).toBeVisible()
   await expect(page.getByLabel(/continuidade da campanha/i)).toContainText(/próxima ocorrência/i)
+  await page.getByRole('button', { name: /voltar à central/i }).click()
+  await expect(page.getByRole('button', { name: /continuar campanha/i })).toBeVisible()
+  await expect(page.getByLabel(/rota ativa da campanha/i)).toContainText(/missão 02/i)
 })
 
 test('abre a carreira e os protocolos de missão com bloqueio por XP', async ({ page }) => {
