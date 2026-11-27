@@ -36,7 +36,8 @@ test('inicia uma ocorrência e gera relatório', async ({ page }) => {
   await expect(page.getByText('/ 1000')).toBeVisible()
   await expect(page.getByRole('dialog', { name: /transmissão da central/i })).toBeVisible()
   await page.getByRole('button', { name: /arquivar transmissão/i }).click()
-  await expect(page.getByRole('button', { name: /nova missão/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /continuar campanha/i })).toBeVisible()
+  await expect(page.getByLabel(/continuidade da campanha/i)).toContainText(/próxima ocorrência/i)
 })
 
 test('abre a carreira e os protocolos de missão com bloqueio por XP', async ({ page }) => {
@@ -61,6 +62,29 @@ test('abre a carreira e os protocolos de missão com bloqueio por XP', async ({ 
 })
 
 for (const viewport of [{ name: 'retrato', width: 390, height: 844 }, { name: 'paisagem', width: 844, height: 390 }]) {
+  test(`mantém a ficha inicial utilizável sem rolar a página em ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await acknowledgeSafety(page)
+    await page.getByRole('button', { name: /iniciar plantão/i }).click()
+
+    const dialog = page.getByRole('dialog', { name: /ficha inicial da ocorrência/i })
+    const card = dialog.locator('.dispatch-card')
+    await expect(card).toBeVisible()
+    const metrics = await card.evaluate((element) => {
+      const style = getComputedStyle(element)
+      const before = element.scrollTop
+      element.scrollTop = element.scrollHeight
+      return { overflowY: style.overflowY, clientHeight: element.clientHeight, scrollHeight: element.scrollHeight, scrollTop: element.scrollTop, before }
+    })
+    expect(metrics.overflowY).toMatch(/auto|scroll/)
+    expect(metrics.clientHeight).toBeGreaterThan(40)
+    if (metrics.scrollHeight > metrics.clientHeight) expect(metrics.scrollTop).toBeGreaterThan(metrics.before)
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight + 1)).toBe(true)
+    await page.getByRole('button', { name: /iniciar atendimento/i }).click()
+    await expect(page.locator('.game-shell')).toBeVisible()
+  })
+
   test(`mantém o cockpit dentro do viewport mobile em ${viewport.name}`, async ({ page }) => {
     await page.setViewportSize({ width: viewport.width, height: viewport.height })
     await page.goto('/', { waitUntil: 'domcontentloaded' })

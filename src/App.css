@@ -260,3 +260,32 @@ button:hover { transform: translateY(-1px); }
 
 .season-closing-overlay { position: fixed; z-index: 92; inset: 0; display: grid; place-items: center; padding: 1rem; background: radial-gradient(circle at 50% 42%, #dca94a38, #01070dec 65%); backdrop-filter: blur(12px); }.season-closing-card { position: relative; display: grid; gap: .9rem; width: min(600px, 100%); overflow: hidden; padding: clamp(1.45rem, 4vw, 2.8rem); border: 1px solid #f0ca7194; border-bottom: 4px solid #72e1d0; background: linear-gradient(145deg, #3a2a12, #07131e 68%); box-shadow: 0 35px 110px #000d, inset 0 1px #fff1c324; }.season-closing-card::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, transparent 0 49%, #f0ca7015 50% 51%, transparent 52%), repeating-linear-gradient(0deg, transparent 0 9px, #f8d98908 10px 11px); }.season-closing-card > * { position: relative; z-index: 1; }.season-closing-card > span { color: #f5d17a; font: 700 .57rem 'DM Mono', monospace; letter-spacing: .14em; }.season-closing-card h2 { max-width: 460px; margin: 0; color: #fff8e3; font-size: clamp(1.7rem, 7vw, 3.15rem); letter-spacing: -.065em; }.season-closing-card p { max-width: 480px; margin: 0; color: #d5c9a8; font-size: .88rem; line-height: 1.65; }.season-closing-card small { color: #78e4d2; font: .57rem 'DM Mono', monospace; letter-spacing: .08em; }.season-closing-card .primary { justify-self: start; margin-top: .22rem; padding: .72rem .95rem; }.season-closing-card em { color: #a59674; font: .45rem 'DM Mono', monospace; font-style: normal; }.season-closing-rings { position: absolute; top: 50%; right: -12%; width: 46%; aspect-ratio: 1; border: 1px solid #f1ca7042; border-radius: 50%; transform: translateY(-50%); }.season-closing-rings i { position: absolute; inset: 12%; border: 1px solid #76e2d03e; border-radius: 50%; animation: closing-ring 3s linear infinite; }.season-closing-rings i:nth-child(2) { inset: 28%; animation-delay: .7s; }.season-closing-rings i:nth-child(3) { inset: 44%; animation-delay: 1.4s; } @keyframes closing-ring { 50% { opacity: .22; transform: scale(.85); } }
 @media (max-width: 560px) { .season-closing-overlay { padding: .65rem; }.season-closing-card { gap: .72rem; padding: 1.25rem; }.season-closing-card .primary { width: 100%; min-height: 46px; }.season-closing-card p { font-size: .78rem; } }
+
+/* A ficha de despacho é uma janela de jogo independente: nunca depende da rolagem da página. */
+.dispatch-overlay { overflow: hidden; overscroll-behavior: contain; }
+.dispatch-card { max-height: calc(100dvh - 2rem); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+.dispatch-card::before { pointer-events: none; }
+.dispatch-card .primary { position: sticky; bottom: 0; margin-top: .35rem; border: 1px solid #92f6e9; box-shadow: 0 -10px 18px #06121fe8, 0 8px 22px #0008; }
+
+/* A conclusão sempre aponta para a próxima missão, sem sugerir conduta dentro do cenário. */
+.campaign-continuity { display: grid; gap: .3rem; margin: 1rem 0 0; padding: .85rem .95rem; border: 1px solid #6ee4d27c; border-left: 3px solid #5be1cc; background: linear-gradient(110deg, #12463f, #0a1d2c 72%); box-shadow: inset 0 1px #d9fffa16; }
+.campaign-continuity > span { color: #72ead7; font: 700 .54rem 'DM Mono', monospace; letter-spacing: .12em; }
+.campaign-continuity b { color: #effffd; font-size: .82rem; }.campaign-continuity p { max-width: 720px; margin: 0; color: #b9d1d3; font-size: .67rem; line-height: 1.5; }.campaign-continuity small { color: #f0cb75; font: .53rem 'DM Mono', monospace; letter-spacing: .03em; }
+
+@media (max-width: 760px) and (orientation: portrait) {
+  .dispatch-overlay { padding: .55rem; }
+  .dispatch-card { width: 100%; max-height: calc(100dvh - 1.1rem); padding: 1rem; }
+  .dispatch-signal { margin-bottom: .62rem; }.dispatch-id { margin: .65rem 0 .45rem; }.dispatch-copy { margin: .6rem 0 .8rem; }.dispatch-meta { margin-bottom: .75rem; padding: .55rem 0; }
+  .dispatch-card .primary { min-height: 46px; }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  .dispatch-overlay { align-items: start; padding: .35rem; }
+  .dispatch-card { width: min(660px, 100%); max-height: calc(100dvh - .7rem); padding: .72rem .9rem; }
+  .dispatch-signal { margin-bottom: .32rem; transform: scale(.72); transform-origin: left top; height: 20px; }.dispatch-card > .eyebrow { font-size: .43rem; }.dispatch-id { margin: .36rem 0; }.dispatch-id span { padding: .22rem .35rem; font-size: .48rem; }.dispatch-id b { font-size: .58rem; }.dispatch-card h2 { font-size: 1.1rem; }
+  .dispatch-variant, .dispatch-operation { gap: .1rem; margin: .42rem 0; padding: .42rem .5rem; }.dispatch-variant b { font-size: .72rem; }.dispatch-variant small, .dispatch-operation p { font-size: .54rem; }.dispatch-variant em, .dispatch-operation span, .dispatch-operation small { font-size: .43rem; }.dispatch-operation b { font-size: .64rem; }
+  .dispatch-profile { grid-template-columns: 52px 1fr; gap: .5rem; margin: .45rem 0; padding: .38rem; }.dispatch-profile img { width: 52px; }.dispatch-profile p { font-size: .38rem; }.dispatch-profile h2 { font-size: .9rem; }.dispatch-profile span, .dispatch-profile strong { font-size: .5rem; }.dispatch-profile strong { margin-top: .2rem; }
+  .dispatch-copy { margin: .42rem 0; font-size: .59rem; line-height: 1.4; }.dispatch-history { gap: .1rem; padding: .4rem 0; }.dispatch-history span { font-size: .41rem; }.dispatch-history p { margin-bottom: .22rem; font-size: .53rem; line-height: 1.32; }.dispatch-meta { gap: .16rem; margin-bottom: .42rem; padding: .42rem 0; font-size: .45rem; }.dispatch-card .primary { min-height: 38px; margin-top: .12rem; padding: .55rem .7rem; font-size: .63rem; }.dispatch-card > small { margin-top: .42rem; font-size: .48rem; line-height: 1.35; }
+}
+
+@media (max-width: 640px) { .campaign-continuity { padding: .72rem .78rem; }.campaign-continuity p { font-size: .62rem; }.campaign-continuity small { font-size: .48rem; } }
