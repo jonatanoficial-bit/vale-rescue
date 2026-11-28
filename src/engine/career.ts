@@ -2,7 +2,7 @@ import type { CaseDefinition, ScoreReport, ServiceProfileId } from './types'
 import { serviceProfileFor } from '../content/serviceProfiles'
 
 export type UpgradeId = 'signal_link' | 'scene_console' | 'fleet_clearance' | 'shift_pass' | 'case_library' | 'night_drive'
-export type CareerMilestoneId = 'first_route' | 'steady_shift' | 'first_promotion' | 'garage_online' | 'central_veteran'
+export type CareerMilestoneId = 'first_route' | 'steady_shift' | 'first_promotion' | 'garage_online' | 'central_veteran' | 'first_signal' | 'signal_archivist'
 export type LiveryId = 'vale_standard' | 'nightwatch' | 'gold_signal' | 'central_archive' | 'signal_route'
 export type CareerSeasonId = 'nightshift' | 'crosswind' | 'frontline'
 export type CareerOperationId = 'open_frequency' | 'rain_line' | 'signal_crossing' | 'district_watch' | 'network_pulse' | 'last_lantern'
@@ -56,7 +56,7 @@ export type CareerMilestone = {
   name: string
   description: string
   icon: string
-  metric: 'missions' | 'streak' | 'xp' | 'upgrades'
+  metric: 'missions' | 'streak' | 'xp' | 'upgrades' | 'operations'
   target: number
   creditReward: number
 }
@@ -142,6 +142,8 @@ export const CAREER_MILESTONES: readonly CareerMilestone[] = [
   { id: 'first_promotion', name: 'Primeira promoção', description: 'Chegue a 500 XP totais.', icon: '✦', metric: 'xp', target: 500, creditReward: 180 },
   { id: 'garage_online', name: 'Garagem ativa', description: 'Instale a primeira melhoria da unidade.', icon: '◆', metric: 'upgrades', target: 1, creditReward: 120 },
   { id: 'central_veteran', name: 'Arquivo da Central', description: 'Conclua 12 missões.', icon: '▦', metric: 'missions', target: 12, creditReward: 320 },
+  { id: 'first_signal', name: 'Primeiro sinal', description: 'Arquive uma operação especial bem avaliada.', icon: '⌁', metric: 'operations', target: 1, creditReward: 110 },
+  { id: 'signal_archivist', name: 'Arquivo de frequências', description: 'Arquive três operações especiais.', icon: '◌', metric: 'operations', target: 3, creditReward: 260 },
 ]
 
 export const CAREER_LIVERIES: readonly CareerLivery[] = [
@@ -204,6 +206,7 @@ export const milestoneProgress = (profile: CareerProfile, milestone: CareerMiles
   if (milestone.metric === 'missions') return profile.missionsCompleted
   if (milestone.metric === 'streak') return profile.missionStreak
   if (milestone.metric === 'xp') return profile.xp
+  if (milestone.metric === 'operations') return profile.completedOperations.length
   return profile.upgrades.length
 }
 

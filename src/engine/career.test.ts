@@ -111,6 +111,8 @@ describe('career progression', () => {
     const reward = awardCareer(profile, report, 'CASE-001', 0, operation)
     expect(reward.operationReward?.id).toBe(operation.id)
     expect(reward.profile.completedOperations).toContain(operation.id)
+    expect(reward.milestoneRewards.map((milestone) => milestone.id)).toContain('first_signal')
+    expect(milestoneProgress(reward.profile, CAREER_MILESTONES.find((milestone) => milestone.id === 'first_signal')!)).toBe(1)
     expect(reward.creditsEarned).toBeGreaterThan(operation.creditReward)
     expect(awardCareer(reward.profile, report, 'CASE-003', 0, operation).operationReward).toBeUndefined()
   })
