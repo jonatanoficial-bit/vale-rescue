@@ -8,6 +8,7 @@ export type CareerSeasonId = 'nightshift' | 'crosswind' | 'frontline'
 export type CareerOperationId = 'open_frequency' | 'rain_line' | 'signal_crossing' | 'district_watch' | 'network_pulse' | 'last_lantern'
 export type CareerNarrativeEventId = 'first_frequency' | 'crosswind_signal' | 'frontline_open'
 export type VehicleModelId = 'rescue_van' | 'urban_response' | 'night_runner' | 'command_unit'
+export type WeeklyChallengeId = 'radio_patrol' | 'score_run' | 'operation_signal'
 
 export type CareerProfile = {
   schemaVersion: 1
@@ -25,6 +26,8 @@ export type CareerProfile = {
   completedOperations: CareerOperationId[]
   seenNarrativeEvents: CareerNarrativeEventId[]
   vehicleModelId: VehicleModelId
+  seasonRecords: Partial<Record<CareerSeasonId, SeasonRecord>>
+  weekly?: WeeklyProgress
 }
 
 export type CareerReward = {
@@ -38,6 +41,7 @@ export type CareerReward = {
   operationReward?: CareerOperation
   narrativeEvent?: CareerNarrativeEvent
   seasonClosing?: CareerSeason
+  weeklyReward?: WeeklyChallenge
 }
 
 export type CareerUpgrade = {
@@ -116,6 +120,30 @@ export type CareerNarrativeEvent = {
   icon: string
 }
 
+export type SeasonRecord = {
+  missions: number
+  totalScore: number
+  bestScore: number
+  operations: number
+}
+
+export type WeeklyChallenge = {
+  id: WeeklyChallengeId
+  label: string
+  description: string
+  icon: string
+  metric: 'missions' | 'score' | 'operations'
+  target: number
+  creditReward: number
+}
+
+export type WeeklyProgress = {
+  key: string
+  challengeId: WeeklyChallengeId
+  progress: number
+  completed: boolean
+}
+
 export const CAREER_RANKS = [
   { name: 'Cadete', minXp: 0 },
   { name: 'Socorrista', minXp: 500 },
@@ -182,21 +210,38 @@ export const CAREER_NARRATIVE_EVENTS: readonly CareerNarrativeEvent[] = [
   { id: 'frontline_open', seasonId: 'frontline', missionThreshold: 26, channel: 'TRANSMISSÃO 03', title: 'Linha de frente', body: 'A Unidade 07 passa a cobrir uma rota contínua. Operações especiais podem atravessar cenários e temporadas durante o turno.', signoff: 'CENTRAL · ROTA CONTÍNUA AUTORIZADA', icon: '✦' },
 ]
 
-export const createCareerProfile = (): CareerProfile => ({ schemaVersion: 1, xp: 0, credits: 120, missionsCompleted: 0, missionStreak: 0, bestStreak: 0, recentCaseIds: [], upgrades: [], certifications: [], serviceProfileId: 'samu_usb', milestones: [], liveryId: 'vale_standard', completedOperations: [], seenNarrativeEvents: [], vehicleModelId: 'rescue_van' })
+export const WEEKLY_CHALLENGES: readonly WeeklyChallenge[] = [
+  { id: 'radio_patrol', label: 'Patrulha de rádio', description: 'Arquive 3 missões no ciclo local.', icon: '◉', metric: 'missions', target: 3, creditReward: 145 },
+  { id: 'score_run', label: 'Frequência alta', description: 'Some 1800 pontos de missão no ciclo local.', icon: '⌁', metric: 'score', target: 1800, creditReward: 190 },
+  { id: 'operation_signal', label: 'Sinal especial', description: 'Conclua 1 operação especial bem avaliada no ciclo local.', icon: '✦', metric: 'operations', target: 1, creditReward: 220 },
+]
 
-export const normalizeCareerProfile = (profile: Partial<CareerProfile> | null): CareerProfile => ({
-  ...createCareerProfile(),
-  ...profile,
-  upgrades: Array.isArray(profile?.upgrades) ? profile.upgrades : [],
-  certifications: Array.isArray(profile?.certifications) ? profile.certifications : [],
-  recentCaseIds: Array.isArray(profile?.recentCaseIds) ? profile.recentCaseIds.slice(-4) : [],
-  milestones: Array.isArray(profile?.milestones) ? profile.milestones.filter((id) => CAREER_MILESTONES.some((milestone) => milestone.id === id)) : [],
-  completedOperations: Array.isArray(profile?.completedOperations) ? profile.completedOperations.filter((id): id is CareerOperationId => CAREER_OPERATIONS.some((operation) => operation.id === id)) : [],
-  seenNarrativeEvents: Array.isArray(profile?.seenNarrativeEvents) ? profile.seenNarrativeEvents.filter((id): id is CareerNarrativeEventId => CAREER_NARRATIVE_EVENTS.some((event) => event.id === id)) : [],
-  liveryId: profile?.liveryId === 'nightwatch' || profile?.liveryId === 'signal_route' || profile?.liveryId === 'gold_signal' || profile?.liveryId === 'central_archive' || profile?.liveryId === 'vale_standard' ? profile.liveryId : 'vale_standard',
-  vehicleModelId: profile?.vehicleModelId === 'urban_response' || profile?.vehicleModelId === 'night_runner' || profile?.vehicleModelId === 'command_unit' || profile?.vehicleModelId === 'rescue_van' ? profile.vehicleModelId : 'rescue_van',
-  serviceProfileId: profile?.serviceProfileId === 'samu_usa' || profile?.serviceProfileId === 'paramedic_response' || profile?.serviceProfileId === 'samu_usb' ? profile.serviceProfileId : 'samu_usb',
-})
+export const createCareerProfile = (): CareerProfile => ({ schemaVersion: 1, xp: 0, credits: 120, missionsCompleted: 0, missionStreak: 0, bestStreak: 0, recentCaseIds: [], upgrades: [], certifications: [], serviceProfileId: 'samu_usb', milestones: [], liveryId: 'vale_standard', completedOperations: [], seenNarrativeEvents: [], vehicleModelId: 'rescue_van', seasonRecords: {} })
+
+export const normalizeCareerProfile = (profile: Partial<CareerProfile> | null): CareerProfile => {
+  const records = CAREER_SEASONS.reduce<CareerProfile['seasonRecords']>((next, season) => {
+    const record = profile?.seasonRecords?.[season.id]
+    if (record && Number.isFinite(record.missions) && Number.isFinite(record.totalScore) && Number.isFinite(record.bestScore) && Number.isFinite(record.operations)) next[season.id] = { missions: Math.max(0, record.missions), totalScore: Math.max(0, record.totalScore), bestScore: Math.max(0, record.bestScore), operations: Math.max(0, record.operations) }
+    return next
+  }, {})
+  const storedWeekly = profile?.weekly
+  const weekly = storedWeekly && typeof storedWeekly.key === 'string' && WEEKLY_CHALLENGES.some((challenge) => challenge.id === storedWeekly.challengeId) ? { key: storedWeekly.key, challengeId: storedWeekly.challengeId, progress: Math.max(0, storedWeekly.progress), completed: Boolean(storedWeekly.completed) } : undefined
+  return {
+    ...createCareerProfile(),
+    ...profile,
+    upgrades: Array.isArray(profile?.upgrades) ? profile.upgrades : [],
+    certifications: Array.isArray(profile?.certifications) ? profile.certifications : [],
+    recentCaseIds: Array.isArray(profile?.recentCaseIds) ? profile.recentCaseIds.slice(-4) : [],
+    milestones: Array.isArray(profile?.milestones) ? profile.milestones.filter((id) => CAREER_MILESTONES.some((milestone) => milestone.id === id)) : [],
+    completedOperations: Array.isArray(profile?.completedOperations) ? profile.completedOperations.filter((id): id is CareerOperationId => CAREER_OPERATIONS.some((operation) => operation.id === id)) : [],
+    seenNarrativeEvents: Array.isArray(profile?.seenNarrativeEvents) ? profile.seenNarrativeEvents.filter((id): id is CareerNarrativeEventId => CAREER_NARRATIVE_EVENTS.some((event) => event.id === id)) : [],
+    liveryId: profile?.liveryId === 'nightwatch' || profile?.liveryId === 'signal_route' || profile?.liveryId === 'gold_signal' || profile?.liveryId === 'central_archive' || profile?.liveryId === 'vale_standard' ? profile.liveryId : 'vale_standard',
+    vehicleModelId: profile?.vehicleModelId === 'urban_response' || profile?.vehicleModelId === 'night_runner' || profile?.vehicleModelId === 'command_unit' || profile?.vehicleModelId === 'rescue_van' ? profile.vehicleModelId : 'rescue_van',
+    serviceProfileId: profile?.serviceProfileId === 'samu_usa' || profile?.serviceProfileId === 'paramedic_response' || profile?.serviceProfileId === 'samu_usb' ? profile.serviceProfileId : 'samu_usb',
+    seasonRecords: records,
+    weekly,
+  }
+}
 
 export const rankFor = (xp: number) => [...CAREER_RANKS].reverse().find((rank) => xp >= rank.minXp) ?? CAREER_RANKS[0]
 
@@ -223,6 +268,28 @@ export const seasonFor = (missionsCompleted: number): CareerSeason => CAREER_SEA
 export const seasonProgress = (profile: CareerProfile, season = seasonFor(profile.missionsCompleted)) => {
   const target = season.endMission === undefined ? 10 : season.endMission - season.startMission + 1
   return { completed: Math.max(0, profile.missionsCompleted - season.startMission), target }
+}
+
+export const weekKeyFor = (date = new Date()): string => {
+  const cursor = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const day = cursor.getUTCDay() || 7
+  cursor.setUTCDate(cursor.getUTCDate() + 4 - day)
+  const yearStart = new Date(Date.UTC(cursor.getUTCFullYear(), 0, 1))
+  const week = Math.ceil(((cursor.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7)
+  return `${cursor.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
+}
+
+export const weeklyChallengeFor = (date = new Date()): WeeklyChallenge => {
+  const key = weekKeyFor(date)
+  const signal = [...key].reduce((total, character) => total + character.charCodeAt(0), 0)
+  return WEEKLY_CHALLENGES[signal % WEEKLY_CHALLENGES.length]
+}
+
+export const weeklyProgressFor = (profile: CareerProfile, date = new Date()) => {
+  const key = weekKeyFor(date)
+  const challenge = weeklyChallengeFor(date)
+  const stored = profile.weekly?.key === key && profile.weekly.challengeId === challenge.id ? profile.weekly : undefined
+  return { key, challenge, progress: Math.min(challenge.target, stored?.progress ?? 0), completed: Boolean(stored?.completed) }
 }
 
 const operationHash = (caseId: string, seed: number) => Math.abs(Math.floor(Math.sin((seed + [...caseId].reduce((total, char) => total + char.charCodeAt(0), 0)) * 17.371) * 9187.17))
@@ -273,21 +340,29 @@ export const fictionalTransitSeconds = (destination: ScoreReport['destination'],
   return Math.max(65, 160 - saved)
 }
 
-export const awardCareer = (profile: CareerProfile, report: ScoreReport, caseId: string, contextBonus = 0, operation: CareerOperation | null = null): CareerReward => {
+export const awardCareer = (profile: CareerProfile, report: ScoreReport, caseId: string, contextBonus = 0, operation: CareerOperation | null = null, now = new Date()): CareerReward => {
   const before = rankFor(profile.xp)
+  const activeSeason = seasonFor(profile.missionsCompleted)
   const successful = report.score >= 600
   const missionStreak = successful ? profile.missionStreak + 1 : 0
   const streakBonus = successful ? Math.min(55, missionStreak * 7) : 0
   const passMultiplier = profile.upgrades.includes('shift_pass') ? 1.25 : 1
   const baseCredits = Math.round(Math.max(25, Math.round(report.score / 12) + Math.floor(report.xp / 180) + streakBonus + contextBonus) * passMultiplier)
   const operationReward = successful && operation && !profile.completedOperations.includes(operation.id) ? operation : undefined
-  const creditsEarned = baseCredits + (operationReward?.creditReward ?? 0)
-  const progressedProfile: CareerProfile = { ...profile, xp: profile.xp + report.xp, credits: profile.credits + creditsEarned, missionsCompleted: profile.missionsCompleted + 1, missionStreak, bestStreak: Math.max(profile.bestStreak, missionStreak), recentCaseIds: [...profile.recentCaseIds, caseId].slice(-4), completedOperations: operationReward ? [...profile.completedOperations, operationReward.id] : profile.completedOperations }
+  const weekly = weeklyProgressFor(profile, now)
+  const weeklyGain = weekly.challenge.metric === 'missions' ? 1 : weekly.challenge.metric === 'score' ? report.score : operationReward ? 1 : 0
+  const weeklyProgress = Math.min(weekly.challenge.target, weekly.progress + weeklyGain)
+  const weeklyCompleted = weeklyProgress >= weekly.challenge.target
+  const weeklyReward = weeklyCompleted && !weekly.completed ? weekly.challenge : undefined
+  const creditsEarned = baseCredits + (operationReward?.creditReward ?? 0) + (weeklyReward?.creditReward ?? 0)
+  const priorSeasonRecord = profile.seasonRecords[activeSeason.id] ?? { missions: 0, totalScore: 0, bestScore: 0, operations: 0 }
+  const seasonRecord: SeasonRecord = { missions: priorSeasonRecord.missions + 1, totalScore: priorSeasonRecord.totalScore + report.score, bestScore: Math.max(priorSeasonRecord.bestScore, report.score), operations: priorSeasonRecord.operations + (operationReward ? 1 : 0) }
+  const progressedProfile: CareerProfile = { ...profile, xp: profile.xp + report.xp, credits: profile.credits + creditsEarned, missionsCompleted: profile.missionsCompleted + 1, missionStreak, bestStreak: Math.max(profile.bestStreak, missionStreak), recentCaseIds: [...profile.recentCaseIds, caseId].slice(-4), completedOperations: operationReward ? [...profile.completedOperations, operationReward.id] : profile.completedOperations, seasonRecords: { ...profile.seasonRecords, [activeSeason.id]: seasonRecord }, weekly: { key: weekly.key, challengeId: weekly.challenge.id, progress: weeklyProgress, completed: weeklyCompleted } }
   const narrativeEvent = CAREER_NARRATIVE_EVENTS.find((event) => !progressedProfile.seenNarrativeEvents.includes(event.id) && progressedProfile.missionsCompleted >= event.missionThreshold)
   const seasonClosing = CAREER_SEASONS.find((season) => season.endMission !== undefined && progressedProfile.missionsCompleted === season.endMission + 1)
   const milestoneRewards = CAREER_MILESTONES.filter((milestone) => !progressedProfile.milestones.includes(milestone.id) && milestoneProgress(progressedProfile, milestone) >= milestone.target)
   const nextProfile: CareerProfile = { ...progressedProfile, credits: progressedProfile.credits + milestoneRewards.reduce((total, milestone) => total + milestone.creditReward, 0), milestones: [...progressedProfile.milestones, ...milestoneRewards.map((milestone) => milestone.id)], seenNarrativeEvents: narrativeEvent ? [...progressedProfile.seenNarrativeEvents, narrativeEvent.id] : progressedProfile.seenNarrativeEvents }
-  return { profile: nextProfile, xpEarned: report.xp, creditsEarned, streakBonus, contextBonus, promoted: rankFor(nextProfile.xp).name !== before.name, milestoneRewards, operationReward, narrativeEvent, seasonClosing }
+  return { profile: nextProfile, xpEarned: report.xp, creditsEarned, streakBonus, contextBonus, promoted: rankFor(nextProfile.xp).name !== before.name, milestoneRewards, operationReward, narrativeEvent, seasonClosing, weeklyReward }
 }
 
 export const purchaseUpgrade = (profile: CareerProfile, upgradeId: UpgradeId): CareerProfile | null => {

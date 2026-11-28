@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyCareerModifiers, awardCareer, CAREER_LIVERIES, CAREER_MILESTONES, CAREER_OPERATIONS, CAREER_VEHICLES, createCareerProfile, dispatchableCases, fictionalTransitSeconds, liveryIsUnlocked, milestoneProgress, normalizeCareerProfile, purchaseUpgrade, rankFor, seasonFor, seasonProgress, selectCareerCase, specialOperationFor, vehicleIsUnlocked } from './career'
+import { applyCareerModifiers, awardCareer, CAREER_LIVERIES, CAREER_MILESTONES, CAREER_OPERATIONS, CAREER_VEHICLES, createCareerProfile, dispatchableCases, fictionalTransitSeconds, liveryIsUnlocked, milestoneProgress, normalizeCareerProfile, purchaseUpgrade, rankFor, seasonFor, seasonProgress, selectCareerCase, specialOperationFor, vehicleIsUnlocked, weekKeyFor, weeklyChallengeFor, weeklyProgressFor } from './career'
 import { CASE_LIST } from '../content/cases'
 import type { ScoreReport } from './types'
 
@@ -131,5 +131,17 @@ describe('career progression', () => {
     const closing = awardCareer(profile, report, 'CASE-001')
     expect(closing.seasonClosing?.id).toBe('nightshift')
     expect(awardCareer(closing.profile, report, 'CASE-003').seasonClosing).toBeUndefined()
+  })
+
+  it('tracks one local weekly challenge reward and preserves season scores', () => {
+    const now = new Date('2026-11-24T12:00:00.000Z')
+    const challenge = weeklyChallengeFor(now)
+    const operation = challenge.metric === 'operations' ? CAREER_OPERATIONS[0] : null
+    const profile = { ...createCareerProfile(), weekly: { key: weekKeyFor(now), challengeId: challenge.id, progress: Math.max(0, challenge.target - (challenge.metric === 'score' ? report.score : 1)), completed: false } }
+    const reward = awardCareer(profile, report, 'CASE-001', 0, operation, now)
+    expect(reward.weeklyReward?.id).toBe(challenge.id)
+    expect(weeklyProgressFor(reward.profile, now).completed).toBe(true)
+    expect(reward.profile.seasonRecords.nightshift).toMatchObject({ missions: 1, totalScore: report.score, bestScore: report.score })
+    expect(awardCareer(reward.profile, report, 'CASE-003', 0, operation, now).weeklyReward).toBeUndefined()
   })
 })
