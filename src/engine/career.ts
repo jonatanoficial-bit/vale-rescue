@@ -3,7 +3,7 @@ import { serviceProfileFor } from '../content/serviceProfiles'
 
 export type UpgradeId = 'signal_link' | 'scene_console' | 'fleet_clearance' | 'shift_pass' | 'case_library' | 'night_drive'
 export type CareerMilestoneId = 'first_route' | 'steady_shift' | 'first_promotion' | 'garage_online' | 'central_veteran'
-export type LiveryId = 'vale_standard' | 'nightwatch' | 'gold_signal' | 'central_archive'
+export type LiveryId = 'vale_standard' | 'nightwatch' | 'gold_signal' | 'central_archive' | 'signal_route'
 export type CareerSeasonId = 'nightshift' | 'crosswind' | 'frontline'
 export type CareerOperationId = 'open_frequency' | 'rain_line' | 'signal_crossing' | 'district_watch' | 'network_pulse' | 'last_lantern'
 export type CareerNarrativeEventId = 'first_frequency' | 'crosswind_signal' | 'frontline_open'
@@ -68,6 +68,7 @@ export type CareerLivery = {
   tag: string
   icon: string
   requiredMilestone?: CareerMilestoneId
+  requiredOperations?: number
 }
 
 export type CareerVehicle = {
@@ -146,6 +147,7 @@ export const CAREER_MILESTONES: readonly CareerMilestone[] = [
 export const CAREER_LIVERIES: readonly CareerLivery[] = [
   { id: 'vale_standard', name: 'Vale padrão', description: 'Acabamento original da Unidade 07.', tag: 'BASE', icon: '▣' },
   { id: 'nightwatch', name: 'Nightwatch', description: 'Acentos de patrulha noturna para a Central.', tag: 'ROTA INAUGURADA', icon: '☾', requiredMilestone: 'first_route' },
+  { id: 'signal_route', name: 'Sinal de Rota', description: 'Traços de frequência para celebrar a primeira operação especial.', tag: '1 OPERAÇÃO', icon: '⌁', requiredOperations: 1 },
   { id: 'gold_signal', name: 'Sinal dourado', description: 'Detalhes de comando para a primeira promoção.', tag: 'PROMOÇÃO', icon: '✦', requiredMilestone: 'first_promotion' },
   { id: 'central_archive', name: 'Arquivo Central', description: 'Identidade de veterania da Central.', tag: 'VETERANIA', icon: '▦', requiredMilestone: 'central_veteran' },
 ]
@@ -189,7 +191,7 @@ export const normalizeCareerProfile = (profile: Partial<CareerProfile> | null): 
   milestones: Array.isArray(profile?.milestones) ? profile.milestones.filter((id) => CAREER_MILESTONES.some((milestone) => milestone.id === id)) : [],
   completedOperations: Array.isArray(profile?.completedOperations) ? profile.completedOperations.filter((id): id is CareerOperationId => CAREER_OPERATIONS.some((operation) => operation.id === id)) : [],
   seenNarrativeEvents: Array.isArray(profile?.seenNarrativeEvents) ? profile.seenNarrativeEvents.filter((id): id is CareerNarrativeEventId => CAREER_NARRATIVE_EVENTS.some((event) => event.id === id)) : [],
-  liveryId: profile?.liveryId === 'nightwatch' || profile?.liveryId === 'gold_signal' || profile?.liveryId === 'central_archive' || profile?.liveryId === 'vale_standard' ? profile.liveryId : 'vale_standard',
+  liveryId: profile?.liveryId === 'nightwatch' || profile?.liveryId === 'signal_route' || profile?.liveryId === 'gold_signal' || profile?.liveryId === 'central_archive' || profile?.liveryId === 'vale_standard' ? profile.liveryId : 'vale_standard',
   vehicleModelId: profile?.vehicleModelId === 'urban_response' || profile?.vehicleModelId === 'night_runner' || profile?.vehicleModelId === 'command_unit' || profile?.vehicleModelId === 'rescue_van' ? profile.vehicleModelId : 'rescue_van',
   serviceProfileId: profile?.serviceProfileId === 'samu_usa' || profile?.serviceProfileId === 'paramedic_response' || profile?.serviceProfileId === 'samu_usb' ? profile.serviceProfileId : 'samu_usb',
 })
@@ -207,7 +209,7 @@ export const milestoneProgress = (profile: CareerProfile, milestone: CareerMiles
 
 export const liveryFor = (id: LiveryId) => CAREER_LIVERIES.find((livery) => livery.id === id) ?? CAREER_LIVERIES[0]
 
-export const liveryIsUnlocked = (profile: CareerProfile, livery: CareerLivery): boolean => !livery.requiredMilestone || profile.milestones.includes(livery.requiredMilestone)
+export const liveryIsUnlocked = (profile: CareerProfile, livery: CareerLivery): boolean => (!livery.requiredMilestone || profile.milestones.includes(livery.requiredMilestone)) && (!livery.requiredOperations || profile.completedOperations.length >= livery.requiredOperations)
 
 export const vehicleFor = (id: VehicleModelId) => CAREER_VEHICLES.find((vehicle) => vehicle.id === id) ?? CAREER_VEHICLES[0]
 

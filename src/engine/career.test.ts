@@ -47,6 +47,7 @@ describe('career progression', () => {
     expect(normalizeCareerProfile({ serviceProfileId: 'paramedic_response' }).serviceProfileId).toBe('paramedic_response')
     expect(normalizeCareerProfile({ serviceProfileId: 'unsupported' as never }).serviceProfileId).toBe('samu_usb')
     expect(normalizeCareerProfile({ liveryId: 'nightwatch' }).liveryId).toBe('nightwatch')
+    expect(normalizeCareerProfile({ liveryId: 'signal_route' }).liveryId).toBe('signal_route')
     expect(normalizeCareerProfile({ vehicleModelId: 'night_runner' }).vehicleModelId).toBe('night_runner')
   })
 
@@ -80,6 +81,9 @@ describe('career progression', () => {
     expect(nightwatch).toBeDefined()
     expect(liveryIsUnlocked(profile, nightwatch!)).toBe(false)
     expect(liveryIsUnlocked({ ...profile, milestones: ['first_route'] }, nightwatch!)).toBe(true)
+    const signalRoute = CAREER_LIVERIES.find((livery) => livery.id === 'signal_route')
+    expect(liveryIsUnlocked(profile, signalRoute!)).toBe(false)
+    expect(liveryIsUnlocked({ ...profile, completedOperations: ['open_frequency'] }, signalRoute!)).toBe(true)
   })
 
   it('unlocks visual unit models through career-only achievements', () => {

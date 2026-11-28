@@ -60,6 +60,8 @@ test('abre a carreira e os protocolos de missão com bloqueio por XP', async ({ 
   await expect(page.locator('.season-board').getByText(/operações especiais/i)).toBeVisible()
   await expect(page.getByRole('heading', { name: /setores da central/i })).toBeVisible()
   await expect(page.getByLabel(/mapa de setores da campanha/i).getByText('Baixo Vale', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /operações da central/i })).toBeVisible()
+  await expect(page.getByLabel(/operações especiais da temporada/i)).toContainText(/sinal de rota/i)
   await expect(page.getByRole('heading', { name: /histórico de plantões/i })).toBeVisible()
   await expect(page.getByRole('heading', { name: /equipe e carga da próxima missão/i })).toBeVisible()
   await page.getByRole('button', { name: /abrir protocolos/i }).click()
